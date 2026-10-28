@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 프로젝트 데이터 (원본·대용량은 드라이브로 공유)
+data/*
+!data/.gitkeep
