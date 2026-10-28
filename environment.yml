@@ -1,0 +1,26 @@
+name: flood_route
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  # 서버
+  - fastapi
+  - uvicorn
+  - pydantic-settings
+  - httpx
+  - apscheduler
+  - python-dotenv
+  # 경로 탐색·공간 데이터
+  - networkx
+  - osmnx
+  - geopandas
+  - shapely
+  - pyproj
+  - rasterio
+  - numpy
+  - pandas
+  # 실험·그래프
+  - matplotlib
+  # 개발 도구
+  - pytest
+  - ruff
