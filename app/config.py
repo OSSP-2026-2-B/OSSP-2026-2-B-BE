@@ -35,9 +35,10 @@ class Settings(BaseSettings):
     flood_warning_1h_alt_mm: float = 50.0  # 또는 1시간 50mm 이상이면서
     flood_warning_3h_mm: float = 90.0      #      3시간 90mm 이상
 
-    # ---- 수집 주기 (기획안 4.1) ----
+    # ---- 수집 주기 ----
     collect_interval_normal_min: int = 30
     collect_interval_rain_min: int = 10
+    scheduler_enabled: bool = True
     rain_detect_mm_per_h: float = 3.0      # 서울시 돌발강우 감지 기준
 
     # ---- 강우별 보행 속도 m/s (Shi et al., 2017) ----
