@@ -3,8 +3,19 @@
 > BE가 구현되기 전까지 FE는 아래 응답 예시로 화면을 개발합니다.
 > 필드가 바뀌면 이 문서를 먼저 수정하고 FE에 알립니다.
 
-- Base URL (로컬): `http://localhost:8000`
-- 자동 문서 (서버 실행 시): `http://localhost:8000/docs`
+- Base URL (로컬): `http://localhost:8080` 
+  - 실행: `uvicorn app.main:app --reload --port 8080`
+- 자동 문서 (서버 실행 시): `http://localhost:8080/docs`
+- 경로는 모두 `/api` 로 시작합니다 (`/health` 제외). baseURL 에는 `/api` 를 넣지 않습니다.
+  '''js
+  // FE: src/shared/api/axios.js 의 api 인스턴스 사용
+  const { data } = await api.post('/api/route', {
+    start: { lat: 37.4979, lng: 127.0276 },
+    end: { lat: 37.5045, lng: 127.0250 },
+    modes: ['shortest', 'balanced'],
+  })
+  '''
+- 응답 제한: FE axios `timeout` 이 10초이므로 모든 API 는 10초 안에 응답합니다.
 - 형식: 모든 요청·응답은 JSON, 시간은 ISO 8601 (KST, `+09:00`)
 - **좌표 순서 주의**
   - 요청 본문: `{ "lat": 위도, "lng": 경도 }` 객체
@@ -183,11 +194,25 @@
 { "error": { "code": "OUT_OF_PILOT_AREA", "message": "시범 지역(강남역 반경 1km) 밖입니다." } }
 ```
 
+422 는 잘못된 필드를 `details` 에 함께 보냅니다.
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "요청 형식이 올바르지 않습니다.",
+    "details": [{ "field": "modes.0", "reason": "Input should be 'shortest', 'balanced' or 'safety'" }]
+  }
+}
+```
+
 | HTTP | code | 상황 |
 | --- | --- | --- |
 | 400 | `OUT_OF_PILOT_AREA` | 출발·도착지가 시범 지역 밖 |
 | 404 | `NO_ROUTE` | 경로도, 대체 임시주거시설도 없음 |
-| 422 | - | 요청 형식 오류 (FastAPI 기본) |
+| 404 | `NOT_FOUND` | 없는 주소 |
+| 405 | `METHOD_NOT_ALLOWED` | 허용되지 않는 요청 방식 |
+| 422 | `INVALID_REQUEST` | 요청 형식 오류 |
 | 503 | `DATA_UNAVAILABLE` | 강우 자료를 모두 받을 수 없음 |
 
 ---
@@ -195,3 +220,4 @@
 ## 변경 기록
 
 - v0.1 (10/28): 초안 작성 (/route, /risk-layer, /observations)
+- v0.1.1 (11/4): 로컬 포트 8080 으로 변경, axios 호출 예시·응답 제한 10초 추가, 오류 응답 형식 통일
