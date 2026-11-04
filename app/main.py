@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.errors import register_error_handlers
 from app.api.routes import router
 from app.config import settings
 from collectors.scheduler import start_scheduler, stop_scheduler
@@ -35,6 +36,8 @@ app.add_middleware(
 )
 # 프론트 연동용 API 등록 (/api/route, /api/risk-layer, /api/observations)
 app.include_router(router)
+# 오류 응답을 { "error": { "code", "message" } } 모양으로 통일
+register_error_handlers(app)
 
 
 @app.get("/health")
