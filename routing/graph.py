@@ -30,7 +30,7 @@ def build_graph(segments: Iterable[Mapping], nodes: Iterable[Mapping]) -> nx.Mul
 
 
 def load_graph_from_gpkg(path: str = "data/segments.gpkg") -> nx.MultiGraph:
-    """지원님 전처리 결과 파일을 읽어 그래프로 만든다 (파일이 생기면 사용)."""
+    """전처리 결과 파일을 읽어 그래프로 만든다 (파일이 생기면 사용)."""
     import geopandas as gpd
 
     seg = gpd.read_file(path, layer="segments")
