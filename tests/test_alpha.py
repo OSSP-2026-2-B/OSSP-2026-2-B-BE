@@ -69,3 +69,16 @@ def test_choose_alpha_limited_by_detour():
 def test_choose_alpha_none():
     s = summary_table([0, 0.3, 0.5, 0.6, 0.7], [0, 0.3, 0.3, 0.3, 0.3])
     assert choose_alpha(s)["alpha"] is None
+
+
+def test_choose_examples():
+    from experiments.plot_routes import choose_examples
+
+    df = pd.DataFrame({
+        "pair":     [0, 0, 1, 1, 2, 2],
+        "alpha":    [0, 2, 0, 2, 0, 2],
+        "danger_m": [100, 20, 300, 0, 50, 50],
+        "detour":   [0, 0.05, 0, 0.30, 0, 0.0],
+    })
+    # 쌍 1 은 많이 줄었지만 추가거리 30% → 제외, 쌍 2 는 줄지 않음 → 제외
+    assert choose_examples(df, n=3) == [0]
