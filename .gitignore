@@ -224,3 +224,4 @@ data/*
 !data/.gitkeep
 !data/segments.gpkg
 .DS_Store
+cache/
