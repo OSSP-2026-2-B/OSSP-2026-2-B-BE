@@ -35,6 +35,33 @@ class Settings(BaseSettings):
     flood_warning_1h_alt_mm: float = 50.0  # 또는 1시간 50mm 이상이면서
     flood_warning_3h_mm: float = 90.0      #      3시간 90mm 이상
 
+    # ---- 위험도 함수 파라미터 (기획안 3.3): s 강도, a 시작 강우, b 포화 강우 (mm/h) ----
+    risk_h_s: float = 0.85   # H 침수이력
+    risk_h_a: float = 30.0
+    risk_h_b: float = 50.0
+    risk_u_s: float = 0.5    # U 지하 구간
+    risk_u_a: float = 30.0
+    risk_u_b: float = 72.0
+    risk_l_s: float = 0.5    # L 저지대 (2차)
+    risk_l_a: float = 30.0
+    risk_l_b: float = 50.0
+    risk_w_s: float = 0.6    # W 하천 인접 (확장)
+    risk_w_a: float = 30.0
+    risk_w_b: float = 72.0
+
+    # ---- O_H: 침수예보 강우 조건 (충족 시 g_H = 1) ----
+    o_h_15m_mm: float = 20.0   # 15분 20mm 이상
+    o_h_1h_mm: float = 55.0    # 또는 1시간 55mm 이상
+
+    # ---- 통행 제외 규칙 1: ITS 통제 지점 반경 ----
+    its_control_radius_m: float = 30.0
+
+    # ---- 전처리: 보행망·침수이력 ----
+    segment_max_m: float = 25.0          # 엣지를 이 길이 이하로 같은 길이 분할
+    flood_full_depth_m: float = 0.5      # 침수심 ÷ 0.5m (최대 1)
+    flood_nearby_radius_m: float = 30.0  # 건물·지목 없는 기록: 반경 30m
+    flood_nearby_weight: float = 0.5     # 반경 기록은 × 0.5
+
     # ---- 수집 주기 ----
     collect_interval_normal_min: int = 30
     collect_interval_rain_min: int = 10
