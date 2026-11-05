@@ -9,7 +9,7 @@ import pytest
 from shapely.geometry import LineString, Polygon
 
 from preprocess.build_segments import build, write_gpkg
-from preprocess.flood_history import assign_h, classify, normalize_traces, year_of
+from preprocess.flood_history import assign_h, event_years, normalize_traces, year_of
 from preprocess.split import n_pieces, split_edges
 from preprocess.underground import classify_underground
 from routing.astar import find_route
@@ -70,19 +70,24 @@ def test_underground(tags, expected):
     assert classify_underground(**tags) == expected
 
 
-def test_year_and_classify():
+def test_years():
     from pathlib import Path
 
-    assert year_of(Path("data/raw/flood/2022/침수흔적도_2022.shp")) == 2022
-    assert classify(2016, "도로") == "road"
-    assert classify(2016, "도") == "road"
-    assert classify(2016, "대") == "ignore"
-    assert classify(2022, None) == "nearby"     # 2022 건물 피해 기록 (지목 없음)
-    assert classify(2010, "대") == "nearby"     # 지목 구분 없는 연도
-    assert classify(2024, float("nan")) == "nearby"
+    import pandas as pd
+
+    assert year_of(Path("data/raw/flood/2022/2022 서울시 침수흔적도 업뎃.shp")) == 2022
+    df = pd.DataFrame({
+        "F_SAT_YMD": ["20200728", None, "abc"],
+        "F_YR": ["2018", "2018", None],
+    })
+    # 침수 시작일 → F_YR → 파일 연도 순
+    assert event_years(df, 2018) == [2020, 2018, 2018]
+    assert event_years(pd.DataFrame({"피해일시": ["20250822 - 1031"]}), 2025) == [2025]
+    assert event_years(pd.DataFrame({"F_YR": [2013.0]}), 2013) == [2013]
+    assert event_years(pd.DataFrame({"other": [1]}), 2019) == [2019]
 
 
-def test_assign_h():
+def test_assign_h_overlap_rule():
     seg = gpd.GeoDataFrame(
         {"segment_id": [1, 2, 3]},
         geometry=[LineString([(0, 0), (25, 0)]), LineString([(25, 0), (50, 0)]),
@@ -90,39 +95,47 @@ def test_assign_h():
         crs="EPSG:5186",
     )
     raw = {
-        2016: gpd.GeoDataFrame({"F_SHIM": [0.3], "JIMOK": ["도로"]}, geometry=[box(5, -5, 10, 5)],
+        # 구간 1 과 겹침 → 0.3/0.5 = 0.6 / 구간 2 와는 15m → 0.6 × 0.5 = 0.3
+        2016: gpd.GeoDataFrame({"F_SHIM": [0.3]}, geometry=[box(5, -5, 10, 5)], crs="EPSG:5186"),
+        # 구간 1 과 겹침 → 1.2/0.5 = 2.4 → 최대 1 / 구간 2 와는 22m → 0.5
+        2022: gpd.GeoDataFrame({"F_SHIM": [1.2], "F_SAT_YMD": ["20220808"]}, geometry=[box(0, -5, 3, 5)],
                                crs="EPSG:5186"),
-        2022: gpd.GeoDataFrame({"F_SHIM": [1.2], "JIMOK": ["도"]}, geometry=[box(0, -5, 3, 5)],
+        # 2018년 파일에 섞인 2020년 기록: 구간 2 에서 20m → 0.8 × 0.5 = 0.4, 구간 1 에서 30.5m (밖)
+        2018: gpd.GeoDataFrame({"F_SHIM": [0.4], "F_SAT_YMD": ["20200728"]}, geometry=[box(48, 20, 53, 25)],
                                crs="EPSG:5186"),
-        # 건물 피해 기록: 구간 2 에서 20m (30m 안 → (0.4/0.5)×0.5 = 0.4), 구간 1 에서 30.5m (밖)
-        2023: gpd.GeoDataFrame({"F_SHIM": [0.4]}, geometry=[box(48, 20, 53, 25)], crs="EPSG:5186"),
-        # 대지 필지 (무시)
-        2017: gpd.GeoDataFrame({"F_SHIM": [1.0], "JIMOK": ["대"]}, geometry=[box(200, -5, 210, 5)],
-                               crs="EPSG:5186"),
+        # 2025년 형식 (피해일시): 구간 3 과 겹침 → 0.6
+        2025: gpd.GeoDataFrame({"F_SHIM": [0.3], "피해일시": ["20250822 - 1031"]},
+                               geometry=[box(210, -5, 215, 5)], crs="EPSG:5186"),
     }
     traces = gpd.GeoDataFrame(
         gpd.pd.concat([normalize_traces(g, y) for y, g in raw.items()], ignore_index=True), crs="EPSG:5186"
     )
     h = assign_h(seg, traces).set_index("segment_id")
 
-    assert h.loc[1, "H"] == pytest.approx(1.0)        # 2022 1.2m → 2.4 → 최대 1
-    assert h.loc[1, "H_count"] == 2
-    assert h.loc[1, "H_years"] == "2016,2022"
-    assert h.loc[2, "H"] == pytest.approx(0.4)
-    assert h.loc[2, "H_years"] == "2023"
-    assert h.loc[3, "H"] == 0 and h.loc[3, "H_count"] == 0 and h.loc[3, "H_years"] == ""
+    assert h.loc[1, "H"] == pytest.approx(1.0)
+    assert h.loc[1, "H_years"] == "2016,2022" and h.loc[1, "H_count"] == 2
+    assert h.loc[2, "H"] == pytest.approx(0.5)        # 겹치는 흔적 없음 → 반경 값 중 최대
+    assert h.loc[2, "H_years"] == "2016,2020,2022" and h.loc[2, "H_count"] == 3
+    assert h.loc[3, "H"] == pytest.approx(0.6)
+    assert h.loc[3, "H_years"] == "2025"
+
+
+def test_assign_h_no_traces():
+    seg = gpd.GeoDataFrame({"segment_id": [1]}, geometry=[LineString([(0, 0), (25, 0)])], crs="EPSG:5186")
+    h = assign_h(seg, None)
+    assert h["H"].tolist() == [0.0] and h["H_years"].tolist() == [""]
 
 
 def test_build_and_load_gpkg(tmp_path):
-    raw = gpd.GeoDataFrame({"F_SHIM": [0.25], "JIMOK": ["도로"]}, geometry=[box(10, -3, 12, 3)],
-                           crs="EPSG:5186")
+    raw = gpd.GeoDataFrame({"F_SHIM": [0.25]}, geometry=[box(10, -3, 12, 3)], crs="EPSG:5186")
     traces = normalize_traces(raw, 2022)
     seg_gdf, node_gdf = build(edges(), NODES, traces)
     assert list(seg_gdf.columns) == ["segment_id", "u", "v", "length", "U_flag", "U_reason", "H", "H_count",
                                      "H_years", "geometry"]
     assert seg_gdf["U_flag"].tolist() == [0, 0, 0, 1]
     assert seg_gdf["U_reason"].tolist()[-1] == "지하보도"
-    assert seg_gdf["H"].tolist() == pytest.approx([0.5, 0, 0, 0])
+    # 구간 1(0~20m) 은 흔적과 겹침 → 0.5, 구간 2·3 은 30m 안 → 0.25, 구간 4(60~80m) 는 48m → 0
+    assert seg_gdf["H"].tolist() == pytest.approx([0.5, 0.25, 0.25, 0])
 
     out = tmp_path / "segments.gpkg"
     write_gpkg(seg_gdf, node_gdf, out)

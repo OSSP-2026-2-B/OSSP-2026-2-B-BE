@@ -19,7 +19,15 @@ import pandas as pd
 from shapely.geometry import Point
 
 from app.config import settings
-from preprocess.flood_history import TARGET_CRS, assign_h, load_traces, read_shp, year_of
+from preprocess.flood_history import (
+    TARGET_CRS,
+    assign_h,
+    event_years,
+    find_shps,
+    load_traces,
+    read_shp,
+    year_of,
+)
 from preprocess.split import split_edges
 from preprocess.underground import classify_underground
 
@@ -75,18 +83,25 @@ def summary(seg_gdf: gpd.GeoDataFrame) -> str:
     lines = [
         f"구간 수: {len(seg_gdf)}  (평균 {length.mean():.1f} m, 최대 {length.max():.1f} m)",
         f"U=1 지하 구간: {int(under.sum())}  ({length[under].sum():.0f} m)",
-        f"H>0 침수이력 구간: {int((seg_gdf['H'] > 0).sum())}",
+        f"H>0 침수이력 구간: {int((seg_gdf['H'] > 0).sum())}"
+        f"  (H≥0.5: {int((seg_gdf['H'] >= 0.5).sum())}, H=1: {int((seg_gdf['H'] >= 1).sum())})",
         "연도별 H>0 구간 수: " + (", ".join(f"{y}={n}" for y, n in years.items()) or "없음"),
     ]
     return "\n".join(lines)
 
 
 def inspect(flood_dir: str) -> None:
-    """SHP 마다 연도·좌표계·열 이름·침수심 통계를 출력 (열 이름 확인용)"""
-    for shp in sorted(Path(flood_dir).rglob("*.shp")):
+    """SHP 마다 연도·열 이름·앞부분·침수 연도 분포를 출력 (열 이름 확인용)"""
+    shps = find_shps(flood_dir)
+    if not shps:
+        print(f"SHP 파일을 찾지 못했습니다: {flood_dir}  (docs/data.md 의 폴더 구조를 확인하세요)")
+        return
+    for shp in shps:
         gdf = read_shp(shp)
-        print(f"\n== {shp}  (연도 {year_of(shp)}, {len(gdf)}건)")
+        print(f"\n== {shp}  (파일 연도 {year_of(shp)}, {len(gdf)}건)")
         print("열:", [c for c in gdf.columns if c != "geometry"])
+        years = pd.Series(event_years(gdf, year_of(shp))).value_counts().sort_index()
+        print("침수 연도별 건수:", ", ".join(f"{y}={n}" for y, n in years.items()))
         print(gdf.drop(columns="geometry").head(3).to_string())
 
 

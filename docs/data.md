@@ -25,7 +25,7 @@ data/raw/flood/
 
 ```bash
 conda activate flood_route
-# (1) 침수흔적도 열 이름 확인 — 침수심(F_SHIM)·지목 열 이름이 코드와 맞는지 먼저 확인
+# (1) 침수흔적도 열 이름 확인 — 침수심(F_SHIM)·침수 연도 열이 코드와 맞는지 먼저 확인
 python -m preprocess.build_segments --inspect
 # (2) 전처리 실행 — OSM 다운로드 + 25m 분할 + U·H 계산 → data/segments.gpkg
 python -m preprocess.build_segments
@@ -33,7 +33,7 @@ python -m preprocess.build_segments
 python -m preprocess.build_segments --graphml data/raw/walk.graphml
 ```
 
-열 이름이 다르면 `preprocess/flood_history.py` 의 `DEPTH_COLUMNS`, `JIMOK_COLUMNS` 에 추가합니다.
+열 이름이 다르면 `preprocess/flood_history.py` 의 `DEPTH_COLUMNS`(침수심), `DATE_COLUMNS`(침수 시작일) 에 추가합니다.
 실행이 끝나면 구간 수, 지하 구간 수, 연도별 침수이력 구간 수가 출력됩니다.
 **2022 년 H>0 구간이 0 개면 무언가 잘못된 것**입니다 (강남역은 2022 년 침수 지역).
 
@@ -65,9 +65,19 @@ python -m preprocess.build_segments --graphml data/raw/walk.graphml
 - **25m 분할**: 엣지 길이 L → `ceil(L/25)` 개의 같은 길이 구간.
 - **U**: 위 OSM 태그 중 하나면 1. OSMnx 단순화 때 지상·지하 길이 한 엣지로 합쳐지지 않게
   `layer·tunnel·indoor` 가 다르면 엣지를 나눔.
-- **H**: 기록 종류별로
-  - 지목 `도`·`도로` 필지 흔적과 **겹치면** `min(1, F_SHIM / 0.5m)`
-  - 건물 피해 기록(2022 일부·2023~2025)과 지목 구분 없는 2010·2011 기록은 **반경 30m 안이면** `min(1, F_SHIM / 0.5m) × 0.5`
-  - 그 밖의 지목(대지 등) 흔적은 사용 안 함
+- **H** (겹침 기준 — 기획서의 지목 기준에서 변경, 팀 논의 중)
+  - 침수흔적도 2010~2025 어느 파일에도 지목 열이 없어 도로 필지를 구분할 수 없음
+  - 흔적 폴리곤이 구간과 **겹치면** `min(1, F_SHIM / 0.5m)`
+  - 겹치지 않고 **반경 30m 안이면** `min(1, F_SHIM / 0.5m) × 0.5`
   - 침수심이 비어 있으면 흔적이 있다는 사실만으로 1 (보수적)
-  - 구간의 H = 모든 연도·기록 중 최댓값
+  - 구간의 H = 모든 흔적 중 최댓값
+- **침수 연도** (`H_years`): 파일 연도가 아니라 침수 시작일의 연도
+  (`F_SAT_YMD` → `피해일시` → `F_YR` → 파일 연도 순). 예) 2018년 파일에 2020년 호우 기록,
+  2024년 파일에 2023년 기록이 섞여 있음.
+
+## 5. 원본 데이터 특이사항 (2026-11 확인)
+
+- 13개 연도 모두 침수심 `F_SHIM` 있음. 2010~2020 은 열 구성 동일.
+- 2022 부터 `TYPE`(상가·주택 등 건물 유형) 열이 생김. 2024·2025 는 `PNU`(필지 고유번호) 있음.
+- 2025 는 열 이름이 다름 (`피해일시` = "20250822 - 1031" 형식, `F_SAT_YMD` 없음).
+- 2022 파일은 일부 글자가 CP949 → UTF-8 변환 경고를 내지만 계산에 쓰는 열에는 영향 없음.
