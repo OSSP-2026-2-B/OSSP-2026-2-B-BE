@@ -13,7 +13,7 @@ import networkx as nx
 
 
 def build_graph(segments: Iterable[Mapping], nodes: Iterable[Mapping]) -> nx.MultiGraph:
-    """segments: segment_id, u, v, length, U 를 가진 행들
+    """segments: segment_id, u, v, length, U(또는 U_flag) 를 가진 행들
     nodes: node_id, x, y 를 가진 행들"""
     G = nx.MultiGraph()
     for n in nodes:
@@ -24,7 +24,7 @@ def build_graph(segments: Iterable[Mapping], nodes: Iterable[Mapping]) -> nx.Mul
             key=int(s["segment_id"]),          # 구간 번호를 key 로 써서 겹치지 않게
             segment_id=int(s["segment_id"]),
             length=float(s["length"]),
-            U=int(s.get("U", 0)),
+            U=int(s.get("U_flag", s.get("U", 0))),  # gpkg 파일에서는 U_flag (u 와 대소문자 충돌 회피)
         )
     return G
 
