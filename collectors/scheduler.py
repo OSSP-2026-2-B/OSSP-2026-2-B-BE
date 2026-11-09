@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.config import settings
-from collectors.risk_stub import update_risk_cache
+from risk.cache import update_risk_cache
 
 logger = logging.getLogger(__name__)
 
