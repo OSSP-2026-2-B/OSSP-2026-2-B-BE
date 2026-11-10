@@ -49,7 +49,7 @@
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | `start`, `end` | object | O | 출발·도착 좌표 |
-| `modes` | string[] | X | `shortest`(α=0) / `balanced`(α=5) / `safety`(α=10). 기본값 `["shortest", "balanced"]` |
+| `modes` | string[] | X | `shortest`(α=0) / `balanced`(α=2) / `safety`(α=10). 기본값 `["shortest", "balanced"]` |
 
 ### 응답 200
 
@@ -123,7 +123,7 @@
 
 ## 2. GET `/api/risk-layer`
 
-지도 화면 범위 안의 구간별 위험 등급을 GeoJSON으로 돌려줍니다. 지도를 움직일 때마다 호출합니다.
+지도 화면 범위 안의 구간별 위험 등급을 GeoJSON으로 돌려줍니다. 지도를 움직일 때마다 호출한다.
 
 ### 요청
 
@@ -221,3 +221,4 @@
 
 - v0.1 (10/28): 초안 작성 (/route, /risk-layer, /observations)
 - v0.1.1 (11/4): 로컬 포트 8080 으로 변경, axios 호출 예시·응답 제한 10초 추가, 오류 응답 형식 통일
+- v0.1.2 (11/9): 균형 모드 α 5 → 2 (α 확정 실험 결과)
