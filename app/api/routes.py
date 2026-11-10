@@ -1,10 +1,12 @@
-"""프론트 연동용 API. 지금은 docs/api.md 예시를 돌려주는 mock 이며,
-경로 탐색·수집기가 완성되면 실제 값으로 바꾼다 ("mock": true 로 구분)."""
+"""프론트 연동용 API. /route 는 실제 경로 계산,
+/risk-layer·/observations 는 위험도 캐시 연결 전까지 mock."""
 
 from typing import Literal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
+
+from routing.service import RiskInput, plan_routes
 
 router = APIRouter(prefix="/api")
 
@@ -22,38 +24,14 @@ class RouteRequest(BaseModel):
     modes: list[Mode] = Field(default=["shortest", "balanced"])
 
 
-MOCK_ROUTES = {
-    "shortest": {
-        "distance_m": 1200, "duration_min": 19, "walk_speed_mps": 1.05, "detour_min": 0,
-        "risk_segment_count": 3, "max_grade": "고위험",
-        "hazards": [{
-            "segment_id": 1024, "grade": "고위험", "risk": 0.85,
-            "location": [127.0265, 37.4998], "reasons": ["침수흔적 3회 (2010·2011·2022)"],
-        }],
-    },
-    "balanced": {
-        "distance_m": 1500, "duration_min": 24, "walk_speed_mps": 1.05, "detour_min": 5,
-        "risk_segment_count": 0, "max_grade": "주의", "hazards": [],
-    },
-    "safety": {
-        "distance_m": 1560, "duration_min": 25, "walk_speed_mps": 1.05, "detour_min": 6,
-        "risk_segment_count": 0, "max_grade": "주의", "hazards": [],
-    },
-}
+def current_risk() -> RiskInput:
+    # TODO: risk.cache.get_snapshot() 머지 후 연결
+    return RiskInput()
 
 
 @router.post("/route")
 def route(req: RouteRequest):
-    line = [[req.start.lng, req.start.lat], [req.end.lng, req.end.lat]]
-    return {
-        "mock": True,
-        "rain": {"rain_1h_mm": 48.0, "updated_at": "2026-10-28T19:50:00+09:00"},
-        "routes": [
-            {"mode": m, **MOCK_ROUTES[m], "geometry": {"type": "LineString", "coordinates": line}}
-            for m in req.modes
-        ],
-        "fallback": None,
-    }
+    return plan_routes(req.start, req.end, req.modes, current_risk())
 
 
 @router.get("/risk-layer")
