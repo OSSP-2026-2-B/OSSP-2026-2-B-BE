@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     # ---- 회피 강도 α (기획안 4.4, 실측 보행망 실험 후 재확정) ----
     alpha_shortest: float = 0.0
-    alpha_balanced: float = 5.0
+    alpha_balanced: float = 2.0
     alpha_safety: float = 10.0
 
     # ---- 위험 등급 경계: 안전 < 0.3 ≤ 주의 < 0.6 ≤ 위험 < 0.8 ≤ 고위험 ----
