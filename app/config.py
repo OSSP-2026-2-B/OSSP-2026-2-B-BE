@@ -67,10 +67,10 @@ class Settings(BaseSettings):
     # ---- 수집기 (collectors/) ----
     collector_mode: Literal["live", "fixture"] = "fixture"  # live: 실제 API / fixture: 샘플 응답
     seoul_rain_gu: str = "서초구,강남구"           # 서울시 강우량 API 를 조회할 구
-    seoul_rain_gauges: str = "서초구청,강남구청"    # 그중 사용할 강우량계 (10분마다 최댓값)
+    seoul_rain_gauges: str = "서초구청,강남구청"    # 그중 사용할 강우량계 (1시간 합이 큰 쪽)
     kma_grid_nx: int = 61                          # 초단기실황 격자 (강남구 역삼1동)
     kma_grid_ny: int = 125
-    aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 키 발급 후 확인)
+    aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 2026-11-11 live 확인)
     its_bbox_radius_m: float = 1300.0              # ITS 돌발상황 조회 범위 (그래프 수집 반경)
 
     # ---- 강우 지연 규칙 ----
