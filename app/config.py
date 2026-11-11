@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     app_env: str = "local"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
-    # ---- 회피 강도 α (기획안 4.4, 실측 보행망 실험 후 재확정) ----
+    # ---- 회피 강도 α (기획안 4.4 → α 확정 실험 후 2026-11-06 팀 결정: 균형 2, 안전 = 균형 × 2) ----
     alpha_shortest: float = 0.0
     alpha_balanced: float = 2.0
-    alpha_safety: float = 10.0
+    alpha_safety: float = 4.0
 
     # ---- 위험 등급 경계: 안전 < 0.3 ≤ 주의 < 0.6 ≤ 위험 < 0.8 ≤ 고위험 ----
     grade_caution: float = 0.3
@@ -67,10 +67,10 @@ class Settings(BaseSettings):
     # ---- 수집기 (collectors/) ----
     collector_mode: Literal["live", "fixture"] = "fixture"  # live: 실제 API / fixture: 샘플 응답
     seoul_rain_gu: str = "서초구,강남구"           # 서울시 강우량 API 를 조회할 구
-    seoul_rain_gauges: str = "서초구청,강남구청"    # 그중 사용할 강우량계 (10분마다 최댓값)
+    seoul_rain_gauges: str = "서초구청,강남구청"    # 그중 사용할 강우량계 (1시간 합이 큰 쪽)
     kma_grid_nx: int = 61                          # 초단기실황 격자 (강남구 역삼1동)
     kma_grid_ny: int = 125
-    aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 키 발급 후 확인)
+    aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 2026-11-11 live 확인)
     its_bbox_radius_m: float = 1300.0              # ITS 돌발상황 조회 범위 (그래프 수집 반경)
 
     # ---- 강우 지연 규칙 ----

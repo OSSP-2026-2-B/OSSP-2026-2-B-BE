@@ -3,7 +3,9 @@
 침수예보 강우 조건 O_H(15분 20mm 이상) 판단에만 쓴다. 실패하면 None 으로 두고
 위험도는 1시간 강우만으로 계산한다 (O_H 의 1시간 55mm 조건은 그대로 동작).
 
-※ 키 발급 후 실제 응답의 열 이름·지점 번호를 확인할 것 (AWS_STATIONS, 기본 400 강남·401 서초).
+2026-11-11 live 확인: RN-15m 열과 지점 400(강남)·401(서초)이 있다 (AWS_STATIONS).
+응답(help=1)에는 '#  RN-15m : 15분 누적 강수량 (mm)' 같은 설명 줄도 있으므로,
+열 이름 줄은 YYMMDDHHMI·STN·RN-15m 이 모두 들어 있는 줄로 찾는다.
 """
 
 from dataclasses import dataclass
@@ -15,6 +17,7 @@ from collectors.common import KST, CollectorError, http_get, is_live, now_kst, r
 URL = "https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-aws2_min"
 FIXTURE = "aws_min.txt"
 COLUMN = "RN-15m"
+HEADER_KEYS = {"YYMMDDHHMI", "STN", COLUMN}  # 열 이름 줄에만 함께 나오는 이름들
 
 
 @dataclass(frozen=True)
@@ -30,7 +33,7 @@ def parse(text: str, stations: list[str]) -> AwsRain:
     for line in text.splitlines():
         if line.startswith("#"):
             cols = line.lstrip("#").split()
-            if COLUMN in cols:
+            if HEADER_KEYS <= set(cols):   # 설명 줄('#  RN-15m : ...')은 건너뛴다
                 header = cols
             continue
         parts = line.split()

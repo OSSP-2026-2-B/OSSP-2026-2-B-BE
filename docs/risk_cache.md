@@ -12,8 +12,10 @@
        ├─ collectors.aws_rain     방재 AWS RN-15m → 15m           (O_H 침수예보 조건)
        ├─ collectors.its_control  ITS 전면통제·땅꺼짐 지점         (통행 제외 규칙 1)
        └─ risk.model / risk.exclusion 으로 위험도·통행 제외·이유 태그 계산 → 스냅샷 교체
-API
-  └─ risk.cache.get_snapshot() / is_data_unavailable(snapshot)
+API (app/api/routes.py)
+  ├─ risk.cache.get_snapshot() / is_data_unavailable(snapshot)   (True 면 503 DATA_UNAVAILABLE)
+  ├─ POST /api/route       스냅샷의 risk·excluded·reasons·rain → routing.service.plan_routes
+  └─ GET  /api/risk-layer  스냅샷 + risk.cache.get_static() 의 구간 모양 → risk.layer.build_layer
 ```
 
 ## 스냅샷 (`get_snapshot()`)
@@ -49,9 +51,15 @@ API
   강남역 사거리 전면통제 1건.
 - `live`: 실제 API 호출. 키가 없으면 해당 수집기는 실패로 처리되어 위 지연 규칙을 따른다.
 
-## 키 발급 후 확인할 것
+## live 점검 결과 (2026-11-11, `COLLECTOR_MODE=live`)
 
-- 서울시 `ListRainfallService`: 강우량계 이름(`SEOUL_RAIN_GAUGES`, 기본 `서초구청,강남구청`)이 실제 응답과 맞는지
-- 방재 AWS: API허브 `nph-aws2_min` 의 `RN-15m` 열 이름, 지점 번호(`AWS_STATIONS`, 기본 `400,401`)
-- ITS `eventInfo`: 전면통제·땅꺼짐 판별에 쓰는 필드(`lanesBlocked`, `message` 등)와 문구
-- 초단기실황 격자(`KMA_GRID_NX/NY`, 기본 61·125)
+| 수집기 | 결과 | 조치 |
+| --- | --- | --- |
+| 서울시 `ListRainfallService` | 정상 응답. 구 필터 동작(서초구 11,979건·강남구 17,982건), 서초구청·강남구청 있음, 10분 간격(두 강우량계 모두 매시 9·19·…·59분). **필드 이름이 달랐음**: `RF_NM`·`RN_10M`·`DATA_CLCT_TM` (+ `RF_CD`·`GU_CD`·`GU_NM`) | `seoul_rain.py`·샘플 응답·테스트를 실제 필드 이름으로 수정 → 재점검에서 `source: seoul` 확인 |
+| 초단기실황 | 정상 (격자 61·125, RN1 읽음) | 없음 |
+| 방재 AWS (API허브 `nph-aws2_min`) | 처음엔 403(이 API 활용신청 전) → 신청 후 정상. `RN-15m` 열, 지점 `400`·`401` 있음(응답 지점 737개). 응답에 `#  RN-15m : 15분 누적 강수량 (mm)` 같은 설명 줄이 섞여 있음 | 열 이름 줄을 `YYMMDDHHMI`·`STN`·`RN-15m` 이 함께 있는 줄로 찾도록 보완 |
+| ITS `eventInfo` | 정상. 범위 안 1건(공사). 실제 응답은 `eventDetailType`·`lanesBlocked` 가 비어 있고 `message` 가 `<공사>::도로::구간::…::부분통제::기관` 형식 | 판별은 `message` 단어(전면통제·땅꺼짐 등)에 의존. 실제 통제·땅꺼짐 사례가 나오면 문구 확인 |
+
+- 서울시 1시간 강우는 강우량계마다 최근 60분 10분 값을 합한 뒤 서초구청·강남구청 중 큰 값을 쓴다
+  (기획서 R(t)). 강우량계마다 따로 합하므로 두 강우량계의 수집 시각이 어긋나도 두 번 더해지지 않는다.
+- 방재 AWS 가 실패하면 15분 강우는 `null` → O_H 의 15분 20mm 조건만 빠지고 1시간 55mm 조건은 동작한다.

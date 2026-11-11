@@ -3,6 +3,7 @@
     update_risk_cache() -> int   스케줄러가 호출. 수집 → 위험도·통행 제외 계산 → 캐시 교체.
                                  다음 실행까지 기다릴 분(평소 30 / 강우 시 10)을 돌려준다.
     get_snapshot() -> dict|None  API 가 읽는 최신 결과. 첫 갱신 전에는 None.
+    get_static() -> StaticData   캐시가 읽어 둔 정적 데이터 (/api/risk-layer 가 구간 모양에 사용).
 
 스냅샷 모양:
     {
@@ -242,3 +243,8 @@ def update_risk_cache() -> int:
 
 def get_snapshot() -> dict | None:
     return _cache.get_snapshot()
+
+
+def get_static() -> StaticData:
+    """캐시가 읽어 둔 정적 데이터 (segments.gpkg). /api/risk-layer 가 구간 모양을 그릴 때 재사용"""
+    return _cache._get_static()
