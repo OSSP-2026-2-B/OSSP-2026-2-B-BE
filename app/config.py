@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     # ---- 전처리: 보행망·침수이력 ----
     segment_max_m: float = 25.0          # 엣지를 이 길이 이하로 같은 길이 분할
     flood_full_depth_m: float = 0.5      # 침수심 ÷ 0.5m (최대 1)
-    flood_nearby_radius_m: float = 30.0  # 건물·지목 없는 기록: 반경 30m
+    flood_nearby_radius_m: float = 30.0  # 흔적과 겹치지 않은 구간: 반경 30m 안이면
     flood_nearby_weight: float = 0.5     # 반경 기록은 × 0.5
 
     # ---- 수집기 (collectors/) ----
