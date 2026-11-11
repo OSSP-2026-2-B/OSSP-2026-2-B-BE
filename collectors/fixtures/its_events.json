@@ -1,0 +1,15 @@
+{"header": {"resultCode": 0, "resultMsg": "success"},
+ "body": {"totalCount": 3, "items": [
+  {"type": "기타", "eventType": "재난", "eventDetailType": "침수", "startDate": "20261028194000",
+   "coordX": "127.02716", "coordY": "37.49853", "linkId": "1220018300", "roadName": "강남대로",
+   "roadNo": "", "roadDrcType": "양방향", "lanesBlockType": "차단", "lanesBlocked": "전면통제",
+   "message": "강남대로 강남역 사거리 도로 침수로 전면통제", "endDate": ""},
+  {"type": "기타", "eventType": "공사", "eventDetailType": "도로보수", "startDate": "20261028090000",
+   "coordX": "127.03050", "coordY": "37.49610", "linkId": "1220019200", "roadName": "테헤란로",
+   "roadNo": "", "roadDrcType": "상행", "lanesBlockType": "부분차단", "lanesBlocked": "1차로",
+   "message": "테헤란로 1차로 도로보수 공사", "endDate": "20261028180000"},
+  {"type": "기타", "eventType": "재난", "eventDetailType": "도로침하", "startDate": "20261028185000",
+   "coordX": "127.06000", "coordY": "37.51000", "linkId": "1230001100", "roadName": "영동대로",
+   "roadNo": "", "roadDrcType": "양방향", "lanesBlockType": "차단", "lanesBlocked": "전면통제",
+   "message": "영동대로 지반침하(땅꺼짐) 발생", "endDate": ""}
+ ]}}

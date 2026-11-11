@@ -1,0 +1,443 @@
+{
+ "ListRainfallService": {
+  "list_total_count": 54,
+  "RESULT": {
+   "CODE": "INFO-000",
+   "MESSAGE": "정상 처리되었습니다"
+  },
+  "row": [
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "8.0",
+    "RECEIVE_TIME": "2026-10-28 20:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "7.5",
+    "RECEIVE_TIME": "2026-10-28 20:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 20:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "9.0",
+    "RECEIVE_TIME": "2026-10-28 19:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "10.0",
+    "RECEIVE_TIME": "2026-10-28 19:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "9.5",
+    "RECEIVE_TIME": "2026-10-28 19:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "9.0",
+    "RECEIVE_TIME": "2026-10-28 19:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "8.0",
+    "RECEIVE_TIME": "2026-10-28 19:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "7.0",
+    "RECEIVE_TIME": "2026-10-28 19:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "7.5",
+    "RECEIVE_TIME": "2026-10-28 19:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "8.0",
+    "RECEIVE_TIME": "2026-10-28 19:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "6.0",
+    "RECEIVE_TIME": "2026-10-28 19:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "5.5",
+    "RECEIVE_TIME": "2026-10-28 19:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "5.5",
+    "RECEIVE_TIME": "2026-10-28 19:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "5.0",
+    "RECEIVE_TIME": "2026-10-28 19:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 19:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "5.0",
+    "RECEIVE_TIME": "2026-10-28 18:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "4.5",
+    "RECEIVE_TIME": "2026-10-28 18:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "4.5",
+    "RECEIVE_TIME": "2026-10-28 18:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "4.0",
+    "RECEIVE_TIME": "2026-10-28 18:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "4.0",
+    "RECEIVE_TIME": "2026-10-28 18:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "3.5",
+    "RECEIVE_TIME": "2026-10-28 18:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "3.5",
+    "RECEIVE_TIME": "2026-10-28 18:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "3.0",
+    "RECEIVE_TIME": "2026-10-28 18:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "3.0",
+    "RECEIVE_TIME": "2026-10-28 18:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "2.5",
+    "RECEIVE_TIME": "2026-10-28 18:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "3.0",
+    "RECEIVE_TIME": "2026-10-28 18:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "2.0",
+    "RECEIVE_TIME": "2026-10-28 18:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 18:00"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "2.5",
+    "RECEIVE_TIME": "2026-10-28 17:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "2.0",
+    "RECEIVE_TIME": "2026-10-28 17:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 17:50"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "2.0",
+    "RECEIVE_TIME": "2026-10-28 17:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "1.5",
+    "RECEIVE_TIME": "2026-10-28 17:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 17:40"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "1.5",
+    "RECEIVE_TIME": "2026-10-28 17:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "1.0",
+    "RECEIVE_TIME": "2026-10-28 17:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 17:30"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "1.0",
+    "RECEIVE_TIME": "2026-10-28 17:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "0.5",
+    "RECEIVE_TIME": "2026-10-28 17:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 17:20"
+   },
+   {
+    "RAINGAUGE_CODE": "1001",
+    "RAINGAUGE_NAME": "서초구청",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "0.5",
+    "RECEIVE_TIME": "2026-10-28 17:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1002",
+    "RAINGAUGE_NAME": "강남구청",
+    "GU_CODE": "122",
+    "GU_NAME": "강남구",
+    "RAINFALL10": "0.5",
+    "RECEIVE_TIME": "2026-10-28 17:10"
+   },
+   {
+    "RAINGAUGE_CODE": "1003",
+    "RAINGAUGE_NAME": "방배2동",
+    "GU_CODE": "120",
+    "GU_NAME": "서초구",
+    "RAINFALL10": "20.0",
+    "RECEIVE_TIME": "2026-10-28 17:10"
+   }
+  ]
+ }
+}

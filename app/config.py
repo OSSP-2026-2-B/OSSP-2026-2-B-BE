@@ -3,6 +3,8 @@ API 키는 .env 에서 읽고, 기준값은 이 파일 한 곳에서 관리한�
 .env 에 같은 이름(대문자)으로 값을 넣으면 코드 수정 없이 덮어쓸 수 있다. 예) ALPHA_BALANCED=6
 """
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -62,6 +64,22 @@ class Settings(BaseSettings):
     flood_nearby_radius_m: float = 30.0  # 건물·지목 없는 기록: 반경 30m
     flood_nearby_weight: float = 0.5     # 반경 기록은 × 0.5
 
+    # ---- 수집기 (collectors/) ----
+    collector_mode: Literal["live", "fixture"] = "fixture"  # live: 실제 API / fixture: 샘플 응답
+    seoul_rain_gu: str = "서초구,강남구"           # 서울시 강우량 API 를 조회할 구
+    seoul_rain_gauges: str = "서초구청,강남구청"    # 그중 사용할 강우량계 (10분마다 최댓값)
+    kma_grid_nx: int = 61                          # 초단기실황 격자 (강남구 역삼1동)
+    kma_grid_ny: int = 125
+    aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 키 발급 후 확인)
+    its_bbox_radius_m: float = 1300.0              # ITS 돌발상황 조회 범위 (그래프 수집 반경)
+
+    # ---- 강우 지연 규칙 ----
+    rain_delay_fallback_min: int = 20   # 서울시 10분 관측이 이 시간 넘게 없으면 초단기실황 대체
+    rain_stale_min: int = 60            # 마지막 정상값이 이 시간을 넘으면 /route 503 DATA_UNAVAILABLE
+
+    # ---- 위험도 캐시 ----
+    segments_path: str = "data/segments.gpkg"
+
     # ---- 수집 주기 ----
     collect_interval_normal_min: int = 30
     collect_interval_rain_min: int = 10
@@ -90,8 +108,24 @@ class Settings(BaseSettings):
         }
 
     @property
+    def seoul_rain_gu_list(self) -> list[str]:
+        return _split(self.seoul_rain_gu)
+
+    @property
+    def seoul_rain_gauge_list(self) -> list[str]:
+        return _split(self.seoul_rain_gauges)
+
+    @property
+    def aws_station_list(self) -> list[str]:
+        return _split(self.aws_stations)
+
+    @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        return _split(self.cors_origins)
+
+
+def _split(csv: str) -> list[str]:
+    return [o.strip() for o in csv.split(",") if o.strip()]
 
 
 settings = Settings()
