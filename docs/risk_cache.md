@@ -12,8 +12,10 @@
        ├─ collectors.aws_rain     방재 AWS RN-15m → 15m           (O_H 침수예보 조건)
        ├─ collectors.its_control  ITS 전면통제·땅꺼짐 지점         (통행 제외 규칙 1)
        └─ risk.model / risk.exclusion 으로 위험도·통행 제외·이유 태그 계산 → 스냅샷 교체
-API
-  └─ risk.cache.get_snapshot() / is_data_unavailable(snapshot)
+API (app/api/routes.py)
+  ├─ risk.cache.get_snapshot() / is_data_unavailable(snapshot)   (True 면 503 DATA_UNAVAILABLE)
+  ├─ POST /api/route       스냅샷의 risk·excluded·reasons·rain → routing.service.plan_routes
+  └─ GET  /api/risk-layer  스냅샷 + risk.cache.get_static() 의 구간 모양 → risk.layer.build_layer
 ```
 
 ## 스냅샷 (`get_snapshot()`)

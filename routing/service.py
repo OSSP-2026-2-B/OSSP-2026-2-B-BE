@@ -16,7 +16,7 @@ from routing.walk import duration_min, walk_speed
 
 @dataclass
 class RiskInput:
-    """위험도 캐시에서 가져올 값. 캐시 연결 전에는 빈 값(위험 0)으로 동작"""
+    """위험도 캐시(risk.cache.get_snapshot)에서 가져온 값. 기본값은 빈 값(위험 0, 테스트용)"""
 
     risk: dict[int, float] = field(default_factory=dict)
     excluded: set[int] = field(default_factory=set)
@@ -32,10 +32,14 @@ def get_graph() -> tuple[nx.MultiGraph, NodeIndex]:
     return G, NodeIndex(G)
 
 
-def plan_routes(start, end, modes: list[str], ri: RiskInput, s: Settings = settings) -> dict:
+def check_pilot_area(start, end, s: Settings = settings) -> None:
     for p in (start, end):
         if not in_pilot_area(p.lat, p.lng, s):
             raise ApiError(400, "OUT_OF_PILOT_AREA", "시범 지역(강남역 반경 1km) 밖입니다.")
+
+
+def plan_routes(start, end, modes: list[str], ri: RiskInput, s: Settings = settings) -> dict:
+    check_pilot_area(start, end, s)
 
     G, index = get_graph()
     src, _ = index.nearest(*to_xy(start.lat, start.lng))
