@@ -22,10 +22,10 @@ class Settings(BaseSettings):
     app_env: str = "local"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
-    # ---- 회피 강도 α (기획안 4.4, 실측 보행망 실험 후 재확정) ----
+    # ---- 회피 강도 α (기획안 4.4 → α 확정 실험 후 2026-11-06 팀 결정: 균형 2, 안전 = 균형 × 2) ----
     alpha_shortest: float = 0.0
     alpha_balanced: float = 2.0
-    alpha_safety: float = 10.0
+    alpha_safety: float = 4.0
 
     # ---- 위험 등급 경계: 안전 < 0.3 ≤ 주의 < 0.6 ≤ 위험 < 0.8 ≤ 고위험 ----
     grade_caution: float = 0.3
