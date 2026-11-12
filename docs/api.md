@@ -1,25 +1,26 @@
-# API 명세 (초안 v0.1)
+# API 명세 (v0.1.6)
 
-> BE가 구현되기 전까지 FE는 아래 응답 예시로 화면을 개발합니다.
 > 필드가 바뀌면 이 문서를 먼저 수정하고 FE에 알립니다.
 
-- Base URL (로컬): `http://localhost:8080` 
+- Base URL (로컬): `http://localhost:8080`
   - 실행: `uvicorn app.main:app --reload --port 8080`
 - 자동 문서 (서버 실행 시): `http://localhost:8080/docs`
 - 경로는 모두 `/api` 로 시작합니다 (`/health` 제외). baseURL 에는 `/api` 를 넣지 않습니다.
-  '''js
+
+  ```js
   // FE: src/shared/api/axios.js 의 api 인스턴스 사용
   const { data } = await api.post('/api/route', {
     start: { lat: 37.4979, lng: 127.0276 },
     end: { lat: 37.5045, lng: 127.0250 },
     modes: ['shortest', 'balanced'],
   })
-  '''
+  ```
 - 응답 제한: FE axios `timeout` 이 10초이므로 모든 API 는 10초 안에 응답합니다.
 - 형식: 모든 요청·응답은 JSON, 시간은 ISO 8601 (KST, `+09:00`)
 - **좌표 순서 주의**
   - 요청 본문: `{ "lat": 위도, "lng": 경도 }` 객체
   - 응답의 경로·지도 데이터: GeoJSON 규칙대로 `[경도, 위도]` 순서
+- 위험도와 강우는 서버가 평소 30분, 비가 올 때 10분마다 갱신합니다.
 
 ## 엔드포인트 요약
 
@@ -48,7 +49,7 @@
 
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| `start`, `end` | object | O | 출발·도착 좌표 |
+| `start`, `end` | object | O | 출발·도착 좌표. 시범 지역(강남역 반경 1km) 안이어야 합니다 |
 | `modes` | string[] | X | `shortest`(α=0) / `balanced`(α=2) / `safety`(α=4). 기본값 `["shortest", "balanced"]` |
 
 ### 응답 200
@@ -58,24 +59,10 @@
   "rain": { "rain_1h_mm": 48.0, "updated_at": "2026-10-28T19:50:00+09:00" },
   "routes": [
     {
-      "mode": "balanced",
-      "distance_m": 1500,
-      "duration_min": 24,
-      "walk_speed_mps": 1.05,
-      "detour_min": 5,
-      "risk_segment_count": 0,
-      "max_grade": "주의",
-      "geometry": {
-        "type": "LineString",
-        "coordinates": [[127.0276, 37.4979], [127.0281, 37.5003], [127.0250, 37.5045]]
-      },
-      "hazards": []
-    },
-    {
       "mode": "shortest",
       "distance_m": 1200,
-      "duration_min": 19,
-      "walk_speed_mps": 1.05,
+      "duration_min": 23,
+      "walk_speed_mps": 0.9,
       "detour_min": 0,
       "risk_segment_count": 3,
       "max_grade": "고위험",
@@ -92,6 +79,20 @@
           "reasons": ["침수흔적 3회 (2010·2011·2022)"]
         }
       ]
+    },
+    {
+      "mode": "balanced",
+      "distance_m": 1500,
+      "duration_min": 28,
+      "walk_speed_mps": 0.9,
+      "detour_min": 5,
+      "risk_segment_count": 0,
+      "max_grade": "주의",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[127.0276, 37.4979], [127.0281, 37.5003], [127.0250, 37.5045]]
+      },
+      "hazards": []
     }
   ],
   "fallback": null
@@ -100,18 +101,17 @@
 
 | 필드 | 설명 |
 | --- | --- |
-| `duration_min` | 강우별 보행 속도(1.2 / 1.05 / 0.9 m/s)로 계산한 소요 시간 |
+| `rain` | 위험도 계산에 쓴 1시간 강우와 관측 시각 |
+| `routes` | 요청한 `modes` 순서대로 |
+| `distance_m` | 경로 길이 (m) |
+| `duration_min` | 강우별 보행 속도(1.2 / 1.05 / 0.9 m/s)로 계산한 소요 시간 (분, 올림) |
+| `walk_speed_mps` | 적용한 보행 속도. 1시간 강우 1mm 미만 1.2, 20mm 미만 1.05, 20mm 이상 0.9 |
 | `detour_min` | 최단 경로보다 더 걸리는 시간 |
 | `risk_segment_count` | '위험' 등급(위험도 0.6) 이상 구간 수 |
 | `max_grade` | 경로에서 가장 높은 등급: `안전` / `주의` / `위험` / `고위험` |
-| `hazards` | 경로 위의 위험 구간과 이유 (화면의 "왜 이 길을 피하나요?") |
-| `fallback` | 통행 제외 후 경로가 없을 때 대신 안내할 이재민 임시주거시설. 없으면 `null` |
-| `rain` | 위험도 계산에 쓴 1시간 강우와 관측 시각 (위험도 캐시 기준, 평소 30분 / 비 올 때 10분마다 갱신) |
-
-- 위험도·통행 제외는 서버의 위험도 캐시(`risk.cache.get_snapshot()`)에서 읽습니다.
-- 서버를 켠 직후 첫 갱신 전이거나, 서울시 10분 강우의 마지막 정상 관측이 60분을 넘으면
-  `503 DATA_UNAVAILABLE` 을 돌려줍니다 (강우를 모르는 채로 "안전"하다고 안내하지 않기 위해).
-- 출발·도착지가 시범 지역 밖이면 강우 자료 상태와 관계없이 `400 OUT_OF_PILOT_AREA` 가 먼저 나갑니다.
+| `geometry` | 경로 선. 요청한 출발 지점에서 시작해 도착 지점에서 끝납니다 |
+| `hazards` | 경로 위 '위험' 등급 이상 구간과 이유 (화면의 "왜 이 길을 피하나요?"). `location` 은 구간 가운데 |
+| `fallback` | 통행 제외로 경로가 없을 때 대신 안내할 이재민 임시주거시설. 없으면 `null` |
 
 경로가 없을 때 `fallback` 예시:
 
@@ -125,11 +125,15 @@
 }
 ```
 
+- 출발·도착지가 시범 지역 밖이면 `400 OUT_OF_PILOT_AREA`
+- 통행 제외로 갈 수 있는 경로가 없으면 `404 NO_ROUTE`
+- 강우 자료를 받을 수 없으면 `503 DATA_UNAVAILABLE`
+
 ---
 
 ## 2. GET `/api/risk-layer`
 
-지도 화면 범위 안의 구간별 위험 등급을 GeoJSON으로 돌려줍니다. 지도를 움직일 때마다 호출한다.
+지도 화면 범위 안의 구간별 위험 등급을 GeoJSON으로 돌려줍니다. 지도를 움직일 때마다 호출합니다.
 
 ### 요청
 
@@ -161,13 +165,12 @@
 }
 ```
 
-- `안전` 등급 구간은 응답에서 뺍니다 (데이터 양을 줄이기 위해).
-  단, 통행 제외 구간(`excluded: true`)은 등급이 `안전`이어도 넣습니다.
-- `excluded: true`는 통행 제외 구간입니다 (공식 통제 또는 침수경보 시 지하 구간).
-- 구간의 외곽 사각형이 `bbox` 와 겹치면 포함합니다. 구간은 `segment_id` 순서입니다.
+- `안전` 등급 구간은 응답에서 뺍니다. 단, 통행 제외 구간은 등급과 관계없이 넣습니다.
+- `excluded: true` 는 통행 제외 구간입니다 (공식 통제 또는 침수경보 시 지하 구간).
+- 구간의 외곽 사각형이 `bbox` 와 겹치면 포함합니다.
 - `updated_at` 은 위험도 계산에 쓴 강우 관측 시각입니다 (`/api/route` 의 `rain.updated_at` 과 같은 값).
-- `bbox` 형식이 틀리면(숫자 4개가 아니거나 최소값 ≥ 최대값) `422 INVALID_REQUEST`,
-  강우 자료를 쓸 수 없으면 `/api/route` 와 같이 `503 DATA_UNAVAILABLE` 입니다.
+- `bbox` 형식이 틀리면(숫자 4개가 아니거나 최소값 ≥ 최대값) `422 INVALID_REQUEST`
+- 강우 자료를 받을 수 없으면 `503 DATA_UNAVAILABLE`
 
 ---
 
@@ -179,14 +182,14 @@
 
 ```json
 {
-  "updated_at": "2026-10-28T19:50:00+09:00",
+  "updated_at": "2026-11-12T13:51:00+09:00",
   "delayed": false,
-  "rain_1h_mm": 38.0,
-  "rain_3h_mm": 61.5,
-  "rain_15m_mm": 22.0,
-  "forecast_1h_mm": 45.0,
+  "rain_1h_mm": 49.5,
+  "rain_3h_mm": 85.5,
+  "rain_15m_mm": 21.5,
+  "forecast_1h_mm": null,
   "badges": [
-    { "kind": "confirmed", "label": "호우경보", "source": "기상청 기상특보", "issued_at": "2026-10-28T19:40:00+09:00" },
+    { "kind": "confirmed", "label": "호우경보", "source": "기상청 기상특보", "issued_at": "2022-08-08T12:50:00+09:00" },
     { "kind": "estimated", "label": "침수예보 기준 충족", "source": "방재 AWS 15분 강우", "issued_at": null }
   ]
 }
@@ -194,8 +197,19 @@
 
 | 필드 | 설명 |
 | --- | --- |
-| `delayed` | 서울시 강우 자료가 지연·결측되어 기상청 초단기실황으로 대체 중이면 `true` → 화면에 "갱신 지연" 표시 |
+| `updated_at` | 강우 관측 시각 |
+| `delayed` | 서울시 강우 자료가 지연되어 기상청 초단기실황으로 대체 중이면 `true` → 화면에 "갱신 지연" 표시 |
+| `rain_3h_mm`, `rain_15m_mm` | 자료가 없으면 `null` |
+| `forecast_1h_mm` | 예보 강우. 현재 미제공 (항상 `null`) |
 | `badges[].kind` | `confirmed` = 공식 발표 정보 [확인], `estimated` = 서비스가 계산한 정보 [추정] |
+
+배지 규칙
+- `confirmed`: 서울동남권(강남·서초) 호우주의보·경보. 둘 다 있으면 경보만
+- `estimated`: 아래 중 하나. 경보 기준을 충족하면 경보 배지만
+  - `침수경보 기준 충족`: 1시간 72mm 이상, 또는 1시간 50mm 이상이면서 3시간 90mm 이상
+  - `침수예보 기준 충족`: 15분 20mm 이상, 또는 1시간 55mm 이상
+- 해당 사항이 없으면 `badges` 는 빈 배열
+- 강우 자료를 받을 수 없으면 `503 DATA_UNAVAILABLE`
 
 ---
 
@@ -232,7 +246,8 @@
 
 - v0.1 (10/28): 초안 작성 (/route, /risk-layer, /observations)
 - v0.1.1 (11/4): 로컬 포트 8080 으로 변경, axios 호출 예시·응답 제한 10초 추가, 오류 응답 형식 통일
-- v0.1.2 (11/9): 균형 모드 α 5 → 2 (α 확정 실험 결과)
-- v0.1.3 (11/10): /api/route 실제 경로 계산 적용 (강남역 보행망). 위험도 캐시 연결 전까지 위험도 0 으로 계산
-- v0.1.4 (11/11): 안전 모드 α 10 → 4 (2026-11-06 팀 결정, 균형 × 2)
-- v0.1.5 (11/11): /api/route·/api/risk-layer 위험도 캐시 연결 (/risk-layer mock 제거), 강우 자료가 없으면 503 DATA_UNAVAILABLE
+- v0.1.2 (11/9): 균형 모드 α 5 → 2
+- v0.1.3 (11/10): /api/route 실제 경로 계산 적용
+- v0.1.4 (11/11): 안전 모드 α 10 → 4
+- v0.1.5 (11/11): /api/route·/api/risk-layer 실제 위험도 연결, 강우 자료가 없으면 503 DATA_UNAVAILABLE
+- v0.1.6 (11/12): /api/observations 실제 연결 (기상특보 [확인] 배지, 침수예보·경보 기준 [추정] 배지)

@@ -111,6 +111,8 @@ def test_risk_layer_503_without_snapshot(monkeypatch):
     assert res.json()["error"]["code"] == "DATA_UNAVAILABLE"
 
 
-def test_observations_badges():
-    kinds = {b["kind"] for b in client.get("/api/observations").json()["badges"]}
-    assert kinds == {"confirmed", "estimated"}
+def test_observations_503_without_snapshot(monkeypatch):
+    use_snapshot(monkeypatch, None)
+    res = client.get("/api/observations")
+    assert res.status_code == 503
+    assert res.json()["error"]["code"] == "DATA_UNAVAILABLE"
