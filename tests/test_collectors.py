@@ -139,3 +139,18 @@ def test_live_without_key(fetch):
 def test_its_live_without_key():
     with pytest.raises(CollectorError):
         its_control.fetch(LIVE)
+
+
+def test_http_get_error_hides_key(monkeypatch):
+    import httpx
+
+    from collectors.common import CollectorError, http_get
+
+    def fake_get(url, params=None, timeout=None):
+        return httpx.Response(401, request=httpx.Request("GET", url, params=params))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    with pytest.raises(CollectorError) as e:
+        http_get("https://openapi.example.com/SECRETKEY/json", {"authKey": "SECRETKEY"})
+    assert "SECRETKEY" not in str(e.value)
+    assert "401" in str(e.value)

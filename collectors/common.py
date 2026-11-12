@@ -34,12 +34,16 @@ def read_fixture(name: str) -> str:
 
 
 def http_get(url: str, params: dict | None = None) -> str:
-    """GET 후 본문 문자열. 네트워크·HTTP 오류는 CollectorError 로 바꾼다."""
+    """GET 후 본문 문자열. 네트워크·HTTP 오류는 CollectorError로 바꾼다.
+    오류 메시지에는 API 키가 들어가지 않도록 주소 대신 서버 이름만 남긴다."""
+    host = httpx.URL(url).host
     try:
         r = httpx.get(url, params=params, timeout=TIMEOUT_S)
         r.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        raise CollectorError(f"{host} 호출 실패: HTTP {e.response.status_code}") from None
     except httpx.HTTPError as e:
-        raise CollectorError(f"{url} 호출 실패: {e}") from e
+        raise CollectorError(f"{host} 호출 실패: {type(e).__name__}") from None
     return r.text
 
 
