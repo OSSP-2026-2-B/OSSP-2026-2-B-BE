@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     flood_warning_1h_alt_mm: float = 50.0  # 또는 1시간 50mm 이상이면서
     flood_warning_3h_mm: float = 90.0      #      3시간 90mm 이상
 
-    # ---- 위험도 함수 파라미터 (기획안 3.3): s 강도, a 시작 강우, b 포화 강우 (mm/h) ----
+    # ---- 위험도 함수 파라미터: s 강도, a 시작 강우, b 포화 강우 (mm/h) ----
     risk_h_s: float = 0.85   # H 침수이력
     risk_h_a: float = 30.0
     risk_h_b: float = 50.0
@@ -72,7 +72,8 @@ class Settings(BaseSettings):
     kma_grid_ny: int = 125
     aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 2026-11-11 live 확인)
     its_bbox_radius_m: float = 1300.0              # ITS 돌발상황 조회 범위 (그래프 수집 반경)
-
+    kma_warning_region: str = "L1100100"           # 기상특보 구역: 서울동남권 (강남·서초)  
+     
     # ---- 강우 지연 규칙 ----
     rain_delay_fallback_min: int = 20   # 서울시 10분 관측이 이 시간 넘게 없으면 초단기실황 대체
     rain_stale_min: int = 60            # 마지막 정상값이 이 시간을 넘으면 /route 503 DATA_UNAVAILABLE

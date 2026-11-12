@@ -1,7 +1,6 @@
 """프론트 연동용 API.
 
-/route·/risk-layer 는 위험도 캐시(risk.cache.get_snapshot)를 읽어 계산하고,
-/observations 는 아직 mock.
+/route·/risk-layer·/observations 모두 위험도 캐시(risk.cache.get_snapshot)를 읽어 계산한다.
 """
 
 from typing import Literal
@@ -10,6 +9,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
 from app.api.errors import ApiError
+from app.api.observations import build_observations, warning_cache
 from risk import cache as risk_cache
 from risk.layer import BBox, build_layer, segment_lines
 from routing.service import RiskInput, check_pilot_area, plan_routes
@@ -79,18 +79,4 @@ def risk_layer(bbox: str = Query(..., description="최소경도,최소위도,최
 
 @router.get("/observations")
 def observations():
-    return {
-        "mock": True,
-        "updated_at": "2026-10-28T19:50:00+09:00",
-        "delayed": False,
-        "rain_1h_mm": 38.0,
-        "rain_3h_mm": 61.5,
-        "rain_15m_mm": 22.0,
-        "forecast_1h_mm": 45.0,
-        "badges": [
-            {"kind": "confirmed", "label": "호우경보", "source": "기상청 기상특보",
-             "issued_at": "2026-10-28T19:40:00+09:00"},
-            {"kind": "estimated", "label": "침수예보 기준 충족", "source": "방재 AWS 15분 강우",
-             "issued_at": None},
-        ],
-    }
+    return build_observations(current_snapshot(), warning_cache.get())
