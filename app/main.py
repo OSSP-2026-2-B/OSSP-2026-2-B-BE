@@ -13,7 +13,7 @@ from collectors.scheduler import start_scheduler, stop_scheduler
 
 # 우리 코드의 logger.info(...) 가 터미널에 보이도록
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
+logging.getLogger("httpx").setLevel(logging.WARNING)  # 요청 주소에 API 키가 있어 기록하지 않음
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
