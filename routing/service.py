@@ -23,6 +23,7 @@ class RiskInput:
     reasons: dict[int, list[str]] = field(default_factory=dict)
     rain_1h_mm: float = 0.0
     updated_at: str | None = None
+    scenario: bool = False   # rain_mm 시나리오로 계산했으면 True (응답 rain.scenario)
 
 
 @lru_cache(maxsize=1)
@@ -57,7 +58,7 @@ def plan_routes(start, end, modes: list[str], ri: RiskInput, s: Settings = setti
     base_min = duration_min(found["shortest"].distance_m, ri.rain_1h_mm, s)
     routes = [_route_json(m, found[m], G, start, end, base_min, speed, ri, s) for m in modes]
     return {
-        "rain": {"rain_1h_mm": ri.rain_1h_mm, "updated_at": ri.updated_at},
+        "rain": {"rain_1h_mm": ri.rain_1h_mm, "updated_at": ri.updated_at, "scenario": ri.scenario},
         "routes": routes,
         "fallback": None,
     }

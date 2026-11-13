@@ -60,7 +60,7 @@ def test_route_uses_snapshot_rain(monkeypatch):
     snap = fake_snapshot(rain_1h_mm=30.0)
     use_snapshot(monkeypatch, snap)
     body = client.post("/api/route", json={"start": START, "end": END}).json()
-    assert body["rain"] == {"rain_1h_mm": 30.0, "updated_at": snap["rain"]["updated_at"]}
+    assert body["rain"] == {"rain_1h_mm": 30.0, "updated_at": snap["rain"]["updated_at"], "scenario": False}
     assert body["routes"][0]["walk_speed_mps"] == 0.9  # 20mm 이상 → 폭우 보행 속도
 
 
@@ -116,3 +116,55 @@ def test_observations_503_without_snapshot(monkeypatch):
     res = client.get("/api/observations")
     assert res.status_code == 503
     assert res.json()["error"]["code"] == "DATA_UNAVAILABLE"
+
+# ---------- rain_mm 시나리오 (발표 강우 슬라이더) ----------
+BBOX = {"bbox": "127.01,37.48,127.05,37.51"}
+
+
+def test_route_rain_mm_works_without_live_data(monkeypatch):
+    use_snapshot(monkeypatch, None)  # 실시간 강우 없음 → 평소라면 503
+    res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 60})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["rain"] == {"rain_1h_mm": 60.0, "updated_at": None, "scenario": True}
+    shortest, balanced = body["routes"]
+    assert shortest["walk_speed_mps"] == 0.9            # 시나리오 강우로 보행 속도도 바뀜
+    assert shortest["hazards"]                          # 60mm → 침수흔적 구간 고위험
+    assert balanced["risk_segment_count"] < shortest["risk_segment_count"]
+
+
+def test_route_rain_mm_zero_has_no_hazards():
+    body = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0}).json()
+    assert body["rain"]["scenario"] is True
+    assert all(r["hazards"] == [] for r in body["routes"])
+
+
+@pytest.mark.parametrize("rain_mm", [-1, 201, "많이"])
+def test_route_rain_mm_validation(rain_mm):
+    res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": rain_mm})
+    assert res.status_code == 422
+    assert res.json()["error"]["details"][0]["field"] == "rain_mm"
+
+
+def test_risk_layer_rain_mm(monkeypatch):
+    use_snapshot(monkeypatch, None)
+    body = client.get("/api/risk-layer", params={**BBOX, "rain_mm": 80}).json()
+    assert body["scenario"] is True and body["updated_at"] is None
+    props = [f["properties"] for f in body["features"]]
+    assert "고위험" in {p["grade"] for p in props}
+    excluded = [p for p in props if p["excluded"]]   # 72mm 이상 → 침수흔적 있는 지하 구간 통행 제외
+    assert excluded and all(risk.cache.RULE2_REASON in p["reasons"] for p in excluded)
+    # 60mm 는 72mm 미만이고 3시간 강우는 모름 → 규칙 2 없음
+    body60 = client.get("/api/risk-layer", params={**BBOX, "rain_mm": 60}).json()
+    assert not any(f["properties"]["excluded"] for f in body60["features"])
+
+
+def test_risk_layer_live_is_not_scenario():
+    body = client.get("/api/risk-layer", params=BBOX).json()
+    assert body["scenario"] is False
+
+
+def test_risk_layer_rain_mm_validation():
+    res = client.get("/api/risk-layer", params={**BBOX, "rain_mm": -5})
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "INVALID_REQUEST"
