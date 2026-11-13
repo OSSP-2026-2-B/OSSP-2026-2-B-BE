@@ -81,3 +81,52 @@ python -m preprocess.build_segments --graphml data/raw/walk.graphml
 - 2022 부터 `TYPE`(상가·주택 등 건물 유형) 열이 생김. 2024·2025 는 `PNU`(필지 고유번호) 있음.
 - 2025 는 열 이름이 다름 (`피해일시` = "20250822 - 1031" 형식, `F_SAT_YMD` 없음).
 - 2022 파일은 일부 글자가 CP949 → UTF-8 변환 경고를 내지만 계산에 쓰는 열에는 영향 없음.
+
+## 6. 이재민 임시주거시설 `data/shelters.csv` (경로 없음 안내용, 팀 논의 10번)
+
+통행 제외 때문에 목적지까지 경로가 없을 때 안내할 시설 목록입니다. 원본은 API 로 받고 결과 CSV 만 커밋합니다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 출처 | 서울 열린데이터광장 OA-21068 "서울시 이재민임시주거시설" (Open API, 매월 갱신, 서울시 약 1,200곳) |
+| 키 | `SEOUL_OPENDATA_KEY` (강우 수집기와 같은 키) |
+| 서비스명 | `TbGtnVictP` (`.env` 의 `SEOUL_SHELTER_SERVICE` 로 바꿀 수 있음). 비슷한 `TlInetqkP` 는 지진겸용(OA-21064) 1,100곳이고 수용인원이 없음 |
+| 사용 필드 | `FCLT_NO`(번호) · `ACTC_FCLT_NM`(시설명) · `DADDR`(도로명 주소) · `LAT`·`LOT`(위경도) · `VICTIM_ACTC_PWR`(이재민 수용능력) |
+| 좌표 | 원본은 위경도(GPS)와 X·Y(GRS80 중부원점)를 함께 줌 → 위경도를 그대로 사용 (WGS84) |
+
+```bash
+conda activate flood_route
+# (1) 응답 필드 이름 확인 (저장 안 함). 시설명·주소·위경도·수용인원 필드가 '사용할 필드'에 잡히는지 본다
+COLLECTOR_MODE=live python -m preprocess.shelters --inspect
+# (2) 저장 + 개수 출력 → data/shelters.csv
+COLLECTOR_MODE=live python -m preprocess.shelters
+```
+
+- 필드 이름이 바뀌면 `preprocess/shelters.py` 의 `FIELDS` 후보에 추가합니다.
+- `COLLECTOR_MODE` 없이(fixture) 실행하면 가상 샘플로 `data/shelters_sample.csv` 를 만듭니다 (커밋 안 됨).
+- 실행이 끝나면 저장한 시설 수, 시범 지역(1km) 안 시설 수, **보행 그래프 노드 100m 안 시설 수**
+  (= 그래프로 경로를 낼 수 있는 시설)와 그 목록이 출력됩니다.
+
+처리 규칙
+- 좌표가 없거나 서울 밖(입력 오류) → 버림
+- 강남역에서 2km(`SHELTER_KEEP_RADIUS_M`) 안만 저장. 그래프는 반경 1km 가 아니라 약 2km×2km 사각형이라
+  모서리 쪽(최대 약 1.4km) 시설도 그래프 안일 수 있음
+- 시설명·주소에 '지하'가 있으면(‘지하철’ 제외) 침수 때 갈 곳이 아니므로 뺌
+- 이름이 같고(공백·괄호 설명 무시) 20m 안이면 같은 건물의 여러 공간으로 보고 한 줄로 합치며 수용인원을 더함
+- 강남역에서 가까운 순으로 저장
+
+| 열 | 형식 | 설명 |
+| --- | --- | --- |
+| `shelter_id` | str | 원본 시설 번호 (없으면 `S0001` 같은 순번) |
+| `name` | str | 시설명 |
+| `address` | str | 주소 (층·공간 설명 포함 가능) |
+| `lng`, `lat` | float | 경도·위도 (WGS84, 소수 6자리) |
+| `capacity` | int | 이재민 수용능력, 명 (`VICTIM_ACTC_PWR`. 0 이거나 없으면 빈칸) |
+
+live 결과 (2026-11-13): 서울시 1,200행 → 좌표 오류 6 제외, 강남역 2km 안 **20곳** 저장
+(지하 시설·같은 건물 0). 시범 지역(1km) 안 6곳, **보행 그래프 노드 100m 안 7곳**:
+서운중학교(강남역 513m)·역삼1문화센터(573m)·서초2동주민센터(689m)·서초4동주민센터(711m)·
+서이초등학교(713m)·원명초등학교(987m)·반포고등학교(1,105m). 나머지 13곳은 그래프 밖(경로 계산 불가).
+
+읽기: `from preprocess.shelters import load_shelters` → `Shelter(shelter_id, name, address, lng, lat, capacity)` 목록.
+경로 안내는 시설 좌표를 `routing.locate.to_xy` 로 바꿔 가장 가까운 그래프 노드에 붙이면 됩니다.

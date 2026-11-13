@@ -81,6 +81,14 @@ class Settings(BaseSettings):
     # ---- 위험도 캐시 ----
     segments_path: str = "data/segments.gpkg"
 
+    # ---- 이재민 임시주거시설 (경로 없음 안내, 팀 논의 10번) ----
+    shelters_path: str = "data/shelters.csv"
+    # 서울 열린데이터광장 OA-21068 '서울시 이재민임시주거시설' Open API 서비스명 (2026-11-13 live 확인).
+    # 비슷한 이름의 TlInetqkP 는 지진겸용(OA-21064) 목록이라 수용인원이 없다.
+    seoul_shelter_service: str = "TbGtnVictP"
+    shelter_keep_radius_m: float = 2000.0  # 강남역에서 이 거리 안의 시설만 shelters.csv 에 저장
+    shelter_snap_max_m: float = 100.0      # 가장 가까운 보행 그래프 노드가 이 거리 안이면 '그래프 안'
+
     # ---- 수집 주기 ----
     collect_interval_normal_min: int = 30
     collect_interval_rain_min: int = 10

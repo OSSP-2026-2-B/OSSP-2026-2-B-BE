@@ -223,5 +223,6 @@ __marimo__/
 data/*
 !data/.gitkeep
 !data/segments.gpkg
+!data/shelters.csv
 .DS_Store
 cache/
