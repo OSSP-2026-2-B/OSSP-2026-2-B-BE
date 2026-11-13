@@ -13,21 +13,23 @@
        ├─ collectors.its_control  ITS 전면통제·땅꺼짐 지점         (통행 제외 규칙 1)
        └─ build_risk_cache(정적, 강우, 통제 지점) → 스냅샷 교체
 API (app/api/routes.py)
-  ├─ rain_mm 없음: risk.cache.get_snapshot() / is_data_unavailable(snapshot)  (True 면 503 DATA_UNAVAILABLE)
-  ├─ rain_mm 있음: risk.cache.build_scenario(rain_mm)  (요청마다 계산, 캐시는 그대로, 503 검사 없음)
+  ├─ 시나리오 없음: risk.cache.get_snapshot() / is_data_unavailable(snapshot)  (True 면 503 DATA_UNAVAILABLE)
+  ├─ rain_mm 있음: risk.cache.build_scenario(rain_mm, closures)  (요청마다 계산, 캐시는 그대로, 503 검사 없음)
+  ├─ closures 만:  503 검사 후 build_scenario(closures=..., base_rain=실시간 rain)
   ├─ POST /api/route       스냅샷의 risk·excluded·reasons·rain → routing.service.plan_routes
   └─ GET  /api/risk-layer  스냅샷 + risk.cache.get_static() 의 구간 모양 → risk.layer.build_layer
 ```
 
-## 계산 함수 `build_risk_cache(static, rain, controls, now)`
+## 계산 함수 `build_risk_cache(static, rain, controls, now, scenario=False)`
 
 정적 데이터 + 강우 + 통제 지점 → 스냅샷 (아래 모양). 수집기·캐시 상태를 모르는 순수 함수라
-실서비스와 발표 시연이 **같은 계산 코드**를 지난다. 다른 것은 강우를 어디서 가져오는지뿐이다.
+실서비스와 발표 시연이 **같은 계산 코드**를 지난다. 다른 것은 강우·통제 지점을 어디서 가져오는지뿐이다.
 
-| | 실서비스 `RiskCache.update()` | 시연 `RiskCache.scenario(rain_mm)` |
+| | 실서비스 `RiskCache.update()` | 시연 `RiskCache.scenario(rain_mm, closures, base_rain)` |
 | --- | --- | --- |
-| 강우 | 수집기 (서울시 → 초단기실황 → 이전 값) | `scenario_rain(rain_mm)`: 1h = rain_mm, 3h·15m = None, `source: "scenario"` |
-| 통제 지점 | ITS 수집 (실패 시 직전 목록) | 마지막으로 수집한 목록 (첫 갱신 전이면 없음) |
+| 강우 | 수집기 (서울시 → 초단기실황 → 이전 값) | `rain_mm` 이 있으면 `scenario_rain(rain_mm)`: 1h = rain_mm, 3h·15m = None, `source: "scenario"`. 없으면 `base_rain`(실시간 스냅샷의 rain) 그대로 |
+| 통제 지점 | ITS 수집 (실패 시 직전 목록) | 마지막으로 수집한 실제 통제 + `closures`(종류 `시나리오` → 이유 태그 `도로 통제 (시나리오)`) |
+| `scenario` | `False` | `True` |
 | 결과 | 캐시 교체 → `get_snapshot()` | 돌려주기만 함 (캐시 그대로) |
 
 - 안에서 하는 일: `risk.model.compute_risks`(위험도) → `risk.exclusion.rule1_excluded`(통제 종류별) ·
@@ -44,8 +46,9 @@ API (app/api/routes.py)
 | `excluded` | 통행 제외 `segment_id` 집합 (규칙 1 ∪ 규칙 2) → `find_route(excluded=...)` |
 | `reasons` | `{segment_id: [이유 태그]}` — 위험도 > 0 또는 통행 제외 구간만. 예) `["침수흔적 2회 (2011·2022)", "도로 통제 (전면통제)"]` |
 | `rain` | `rain_1h_mm`, `rain_3h_mm`(모르면 null), `rain_15m_mm`(모르면 null), `updated_at`, `delayed`, + `source`(seoul/kma/previous/none, 시나리오는 scenario), `last_normal_at`(마지막 서울시 정상 관측) |
-| `control_points` | 규칙 1 통제 지점 `[{lng, lat, kind, message}]` |
+| `control_points` | 규칙 1 통제 지점 `[{lng, lat, kind, message}]` (시나리오면 `closures` 도 `kind: "시나리오"` 로 포함) |
 | `computed_at` | 계산 시각 |
+| `scenario` | 가정(`rain_mm`·`closures`)이 들어간 시연 계산이면 `true`. 실시간 스냅샷은 `false` |
 
 첫 갱신 전에는 `None`.
 

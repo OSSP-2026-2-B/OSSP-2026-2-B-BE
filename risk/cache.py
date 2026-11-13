@@ -3,11 +3,12 @@
     update_risk_cache() -> int   스케줄러가 호출. 수집 → 위험도·통행 제외 계산 → 캐시 교체.
                                  다음 실행까지 기다릴 분(평소 30 / 강우 시 10)을 돌려준다.
     get_snapshot() -> dict|None  API 가 읽는 최신 결과. 첫 갱신 전에는 None.
-    build_scenario(rain_mm)      발표 강우 슬라이더: 실시간 강우 대신 rain_mm 으로 계산 (캐시는 그대로).
+    build_scenario(rain_mm, closures, base_rain)
+                                 발표 시연: 강우(rain_mm)·통제(closures) 가정을 넣어 계산 (캐시는 그대로).
     get_static() -> StaticData   캐시가 읽어 둔 정적 데이터 (/api/risk-layer 가 구간 모양에 사용).
 
 계산 자체는 순수 함수 build_risk_cache(정적 데이터, 강우, 통제 지점) 하나가 맡는다.
-실서비스(update)와 시연(build_scenario)은 강우를 어디서 가져오는지만 다르고 같은 함수를 지난다.
+실서비스(update)와 시연(build_scenario)은 강우·통제 지점을 어디서 가져오는지만 다르고 같은 함수를 지난다.
 
 스냅샷 모양:
     {
@@ -23,6 +24,7 @@
       },
       "control_points": [{"lng", "lat", "kind", "message"}],   # 규칙 1 통제 지점
       "computed_at": 계산 시각,
+      "scenario": False,    # 가정(rain_mm·closures)이 들어간 시연 계산이면 True
     }
 
 강우 지연 규칙 (합의됨):
@@ -43,10 +45,12 @@ from collectors.common import CollectorError, now_kst
 from collectors.its_control import ControlPoint
 from risk.exclusion import rule1_excluded, rule2_excluded
 from risk.model import compute_risks, reasons
+from routing.locate import to_xy
 
 logger = logging.getLogger(__name__)
 
 RULE2_REASON = "침수경보 기준 충족 (지하 구간 통행 제외)"
+CLOSURE_KIND = "시나리오"   # closures 통제 종류 → 이유 태그 '도로 통제 (시나리오)'
 
 
 @dataclass
@@ -123,16 +127,30 @@ class RiskCache:
         )
         return self._next_interval(rain)
 
-    def scenario(self, rain_mm: float, now: datetime | None = None) -> dict:
-        """시연: 실시간 강우 대신 rain_mm(1시간 강우)으로 계산한 스냅샷. 캐시는 바꾸지 않는다.
+    def scenario(
+        self,
+        rain_mm: float | None = None,
+        closures: Iterable[tuple[float, float]] = (),
+        base_rain: Mapping | None = None,
+        now: datetime | None = None,
+    ) -> dict:
+        """시연: 가정(강우 rain_mm·통제 closures)을 넣어 계산한 스냅샷. 캐시는 바꾸지 않는다.
 
-        - 3시간·15분 강우는 모름(None) → 규칙 2 는 1시간 72mm 조건만, O_H 는 1시간 55mm 조건만 판단
-          (서울시 강우가 끊겨 초단기실황으로 대체할 때와 같은 처리).
-        - 도로 통제(규칙 1)는 강우와 무관한 현재 사실이므로 마지막으로 수집한 통제 지점을 그대로 쓴다.
-          첫 갱신 전이면 통제 지점이 없어 강우만 반영된다.
+        - 강우: rain_mm 이 있으면 그 값. 3시간·15분 강우는 모름(None) → 규칙 2 는 1시간 72mm 조건만,
+          O_H 는 1시간 55mm 조건만 판단 (서울시 강우가 끊겨 초단기실황으로 대체할 때와 같은 처리).
+          rain_mm 이 없으면 base_rain(실시간 스냅샷의 rain)을 그대로 쓴다.
+        - 통제 지점: 마지막으로 수집한 실제 통제(강우와 무관한 현재 사실) + closures(위도, 경도).
+          closures 는 규칙 1 과 같이 반경 30m 안 구간을 통행 제외하고 이유 태그는 '도로 통제 (시나리오)'.
         """
-        return build_risk_cache(self._get_static(), scenario_rain(rain_mm), self._last_controls,
-                                now or now_kst(), self.s)
+        if rain_mm is not None:
+            rain = scenario_rain(rain_mm)
+        elif base_rain is not None:
+            rain = dict(base_rain)
+        else:
+            raise ValueError("rain_mm 또는 base_rain 중 하나가 필요합니다")
+        controls = [*self._last_controls, *closure_points(closures)]
+        return build_risk_cache(self._get_static(), rain, controls, now or now_kst(), self.s,
+                                scenario=True)
 
     # ---------- 내부 ----------
     def _get_static(self) -> StaticData:
@@ -202,12 +220,14 @@ def build_risk_cache(
     controls: Iterable[ControlPoint],
     now: datetime,
     s: Settings = settings,
+    scenario: bool = False,
 ) -> dict:
     """정적 데이터 + 강우 + 통제 지점 → 스냅샷 (get_snapshot() 과 같은 모양). 순수 함수.
 
     rain: _rain() / scenario_rain() 모양 {rain_1h_mm, rain_3h_mm, rain_15m_mm, updated_at, delayed,
-          source, last_normal_at} (시각은 datetime 또는 None)
-    실제 강남역 데이터에서 강우 값 하나 계산에 약 25ms → API 요청마다 불러도 된다.
+          source, last_normal_at} (시각은 datetime, ISO 문자열 또는 None)
+    scenario: 가정(rain_mm·closures)이 들어간 계산이면 True → 응답의 scenario 표시
+    실제 강남역 데이터에서 강우 값 하나 계산에 약 30ms → API 요청마다 불러도 된다.
     """
     controls = list(controls)
     risk = compute_risks(static.factors, rain["rain_1h_mm"], rain["rain_15m_mm"], s)
@@ -227,6 +247,7 @@ def build_risk_cache(
             {"lng": c.lng, "lat": c.lat, "kind": c.kind, "message": c.message} for c in controls
         ],
         "computed_at": _iso(now),
+        "scenario": scenario,
     }
 
 
@@ -248,8 +269,18 @@ def scenario_rain(rain_mm: float) -> dict:
     return _rain(rain_mm, None, None, None, False, "scenario", None)
 
 
+def closure_points(closures: Iterable[tuple[float, float]]) -> list[ControlPoint]:
+    """시나리오 통제 (위도, 경도) → 규칙 1 통제 지점 (EPSG:5186 좌표로 변환)"""
+    out = []
+    for lat, lng in closures:
+        x, y = to_xy(lat, lng)
+        out.append(ControlPoint(x, y, lng, lat, CLOSURE_KIND, "시나리오 통제"))
+    return out
+
+
 def is_scenario(snapshot: Mapping) -> bool:
-    return snapshot["rain"].get("source") == "scenario"
+    """가정(rain_mm·closures)이 들어간 스냅샷인지. 실시간 스냅샷에는 False"""
+    return bool(snapshot.get("scenario"))
 
 
 def _rain(r1h, r3h, r15m, updated_at, delayed, source, last_normal_at) -> dict:
@@ -260,8 +291,11 @@ def _rain(r1h, r3h, r15m, updated_at, delayed, source, last_normal_at) -> dict:
     }
 
 
-def _iso(t: datetime | None) -> str | None:
-    return t.isoformat(timespec="seconds") if t else None
+def _iso(t: datetime | str | None) -> str | None:
+    """datetime → ISO 문자열. 이미 문자열(실시간 스냅샷의 rain 을 다시 쓸 때)이면 그대로"""
+    if t is None or isinstance(t, str):
+        return t
+    return t.isoformat(timespec="seconds")
 
 
 def is_data_unavailable(
@@ -288,9 +322,13 @@ def get_snapshot() -> dict | None:
     return _cache.get_snapshot()
 
 
-def build_scenario(rain_mm: float) -> dict:
-    """rain_mm 시나리오 스냅샷 (/api/route 본문·/api/risk-layer 쿼리의 rain_mm)"""
-    return _cache.scenario(rain_mm)
+def build_scenario(
+    rain_mm: float | None = None,
+    closures: Iterable[tuple[float, float]] = (),
+    base_rain: Mapping | None = None,
+) -> dict:
+    """시나리오 스냅샷 (/api/route 본문·/api/risk-layer 쿼리의 rain_mm·closures)"""
+    return _cache.scenario(rain_mm, closures, base_rain)
 
 
 def get_static() -> StaticData:

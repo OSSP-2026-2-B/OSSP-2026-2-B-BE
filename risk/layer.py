@@ -2,7 +2,7 @@
 
 지도 화면 범위(bbox) 안의 구간별 위험 등급을 GeoJSON FeatureCollection 으로 돌려준다.
 
-- 위험도 스냅샷(risk.cache.get_snapshot 또는 rain_mm 시나리오)의 risk·excluded·reasons 를 그대로 쓴다.
+- 위험도 스냅샷(get_snapshot 또는 rain_mm·closures 시나리오)의 risk·excluded·reasons 를 그대로 쓴다.
 - '안전'(0.3 미만) 구간은 뺀다. 단, 통행 제외 구간은 등급과 관계없이 넣는다
   (예: 침수이력이 없는 길이라도 도로 통제 지점 근처면 지도에 보여야 한다).
 - 구간 좌표는 미터 좌표(EPSG:5186) → 경위도(EPSG:4326) 변환을 처음 한 번만 한다.
@@ -75,6 +75,6 @@ def build_layer(
     return {
         "type": "FeatureCollection",
         "updated_at": snapshot["rain"]["updated_at"],  # /api/route 의 rain.updated_at 과 같은 값
-        "scenario": snapshot["rain"].get("source") == "scenario",   # rain_mm 시나리오면 True
+        "scenario": bool(snapshot.get("scenario")),   # rain_mm·closures 시나리오면 True
         "features": features,
     }

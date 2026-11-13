@@ -168,3 +168,68 @@ def test_risk_layer_rain_mm_validation():
     res = client.get("/api/risk-layer", params={**BBOX, "rain_mm": -5})
     assert res.status_code == 422
     assert res.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+# ---------- closures 통제 시나리오 (통제 시나리오 토글) ----------
+def middle_of_route() -> dict:
+    """비 없는 최단 경로 가운데 지점 (여기를 통제하면 다른 길로 돌아가야 함)"""
+    body = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0}).json()
+    coords = body["routes"][0]["geometry"]["coordinates"]
+    lng, lat = coords[len(coords) // 2]
+    return {"lat": lat, "lng": lng, "distance_m": body["routes"][0]["distance_m"]}
+
+
+def test_route_closure_forces_detour():
+    mid = middle_of_route()
+    closure = {"lat": mid["lat"], "lng": mid["lng"]}
+    body = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0,
+                                           "closures": [closure]}).json()
+    assert body["rain"]["scenario"] is True
+    assert body["routes"][0]["distance_m"] > mid["distance_m"]   # 통제 지점을 피해 돌아감
+
+
+def test_route_closure_at_destination_no_route():
+    # 도착지 주변 30m 가 모두 막히면 경로 없음 → 임시주거시설 안내(fallback)를 시연할 수 있는 상황
+    res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0, "closures": [END]})
+    assert res.status_code == 404
+    assert res.json()["error"]["code"] == "NO_ROUTE"
+
+
+def test_route_closures_only_use_live_rain(monkeypatch):
+    snap = fake_snapshot(rain_1h_mm=30.0)
+    use_snapshot(monkeypatch, snap)
+    body = client.post("/api/route", json={"start": START, "end": END, "closures": [END]})
+    assert body.status_code == 404                               # 통제는 적용됨
+    mid = middle_of_route()
+    body = client.post("/api/route", json={"start": START, "end": END,
+                                           "closures": [{"lat": mid["lat"], "lng": mid["lng"]}]}).json()
+    assert body["rain"] == {"rain_1h_mm": 30.0, "updated_at": snap["rain"]["updated_at"], "scenario": True}
+
+
+def test_route_closures_only_still_needs_live_data(monkeypatch):
+    use_snapshot(monkeypatch, None)
+    res = client.post("/api/route", json={"start": START, "end": END, "closures": [END]})
+    assert res.status_code == 503                                # 강우는 실시간이 필요
+    res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0, "closures": [END]})
+    assert res.status_code == 404                                # rain_mm 도 주면 503 없이 계산
+
+
+def test_route_closures_validation():
+    res = client.post("/api/route", json={"start": START, "end": END, "closures": [START] * 21})
+    assert res.status_code == 422
+    assert res.json()["error"]["details"][0]["field"] == "closures"
+
+
+def test_risk_layer_closures():
+    lng, lat = 127.0276, 37.4979
+    body = client.get("/api/risk-layer", params={**BBOX, "closures": f"{lng},{lat}"}).json()
+    assert body["scenario"] is True
+    props = [f["properties"] for f in body["features"]]
+    assert props and all(p["excluded"] and "도로 통제 (시나리오)" in p["reasons"] for p in props)
+
+
+@pytest.mark.parametrize("closures", ["127.02", "a,b", "127.02,37.49;", ";".join(["127.02,37.49"] * 21)])
+def test_risk_layer_closures_validation(closures):
+    res = client.get("/api/risk-layer", params={**BBOX, "closures": closures})
+    assert res.status_code == 422
+    assert res.json()["error"]["code"] == "INVALID_REQUEST"
