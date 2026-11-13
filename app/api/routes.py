@@ -1,6 +1,7 @@
 """프론트 연동용 API.
 
 /route·/risk-layer·/observations 모두 위험도 캐시(risk.cache.get_snapshot)를 읽어 계산한다.
+/route 본문·/risk-layer 쿼리에 rain_mm(선택)을 주면 실시간 강우 대신 그 값으로 계산한다 (발표 강우 슬라이더).
 """
 
 from typing import Literal
@@ -17,6 +18,8 @@ from routing.service import RiskInput, check_pilot_area, plan_routes
 router = APIRouter(prefix="/api")
 
 Mode = Literal["shortest", "balanced", "safety"]
+RAIN_MM_MAX = 200.0   # 시나리오 강우 상한 (mm/h). 서울 1시간 최대 기록은 약 141mm (2022-08-08)
+RAIN_MM_DESC = "시나리오 1시간 강우(mm). 주면 실시간 강우 대신 이 값으로 위험도를 계산한다"
 
 
 class LatLng(BaseModel):
@@ -28,6 +31,7 @@ class RouteRequest(BaseModel):
     start: LatLng
     end: LatLng
     modes: list[Mode] = Field(default=["shortest", "balanced"])
+    rain_mm: float | None = Field(default=None, ge=0, le=RAIN_MM_MAX, description=RAIN_MM_DESC)
 
 
 def current_snapshot() -> dict:
@@ -42,21 +46,32 @@ def current_snapshot() -> dict:
     return snap
 
 
-def current_risk() -> RiskInput:
-    snap = current_snapshot()
+def snapshot_for(rain_mm: float | None) -> dict:
+    """rain_mm 이 없으면 실시간 스냅샷(503 검사), 있으면 그 강우로 계산한 시나리오 스냅샷.
+
+    시나리오는 실시간 강우가 필요 없으므로 503 검사를 하지 않는다
+    → 수집이 끊기거나 서버를 막 켰을 때도 발표 시연은 동작한다. 계산은 요청마다 약 25ms.
+    """
+    if rain_mm is None:
+        return current_snapshot()
+    return risk_cache.build_scenario(rain_mm)
+
+
+def risk_input(snap: dict) -> RiskInput:
     return RiskInput(
         risk=snap["risk"],
         excluded=snap["excluded"],
         reasons=snap["reasons"],
         rain_1h_mm=snap["rain"]["rain_1h_mm"],
         updated_at=snap["rain"]["updated_at"],
+        scenario=risk_cache.is_scenario(snap),
     )
 
 
 @router.post("/route")
 def route(req: RouteRequest):
     check_pilot_area(req.start, req.end)  # 요청 자체가 잘못된 경우(400)를 강우 자료 확인(503)보다 먼저 알린다
-    return plan_routes(req.start, req.end, req.modes, current_risk())
+    return plan_routes(req.start, req.end, req.modes, risk_input(snapshot_for(req.rain_mm)))
 
 
 def parse_bbox(text: str) -> BBox:
@@ -72,9 +87,12 @@ def parse_bbox(text: str) -> BBox:
 
 
 @router.get("/risk-layer")
-def risk_layer(bbox: str = Query(..., description="최소경도,최소위도,최대경도,최대위도")):
+def risk_layer(
+    bbox: str = Query(..., description="최소경도,최소위도,최대경도,최대위도"),
+    rain_mm: float | None = Query(None, ge=0, le=RAIN_MM_MAX, description=RAIN_MM_DESC),
+):
     box = parse_bbox(bbox)
-    return build_layer(current_snapshot(), box, segment_lines())
+    return build_layer(snapshot_for(rain_mm), box, segment_lines())
 
 
 @router.get("/observations")

@@ -11,12 +11,30 @@
        ├─ collectors.kma_ultra    초단기실황 RN1 → 1h             (서울시 20분 넘게 없을 때 대체)
        ├─ collectors.aws_rain     방재 AWS RN-15m → 15m           (O_H 침수예보 조건)
        ├─ collectors.its_control  ITS 전면통제·땅꺼짐 지점         (통행 제외 규칙 1)
-       └─ risk.model / risk.exclusion 으로 위험도·통행 제외·이유 태그 계산 → 스냅샷 교체
+       └─ build_risk_cache(정적, 강우, 통제 지점) → 스냅샷 교체
 API (app/api/routes.py)
-  ├─ risk.cache.get_snapshot() / is_data_unavailable(snapshot)   (True 면 503 DATA_UNAVAILABLE)
+  ├─ rain_mm 없음: risk.cache.get_snapshot() / is_data_unavailable(snapshot)  (True 면 503 DATA_UNAVAILABLE)
+  ├─ rain_mm 있음: risk.cache.build_scenario(rain_mm)  (요청마다 계산, 캐시는 그대로, 503 검사 없음)
   ├─ POST /api/route       스냅샷의 risk·excluded·reasons·rain → routing.service.plan_routes
   └─ GET  /api/risk-layer  스냅샷 + risk.cache.get_static() 의 구간 모양 → risk.layer.build_layer
 ```
+
+## 계산 함수 `build_risk_cache(static, rain, controls, now)`
+
+정적 데이터 + 강우 + 통제 지점 → 스냅샷 (아래 모양). 수집기·캐시 상태를 모르는 순수 함수라
+실서비스와 발표 시연이 **같은 계산 코드**를 지난다. 다른 것은 강우를 어디서 가져오는지뿐이다.
+
+| | 실서비스 `RiskCache.update()` | 시연 `RiskCache.scenario(rain_mm)` |
+| --- | --- | --- |
+| 강우 | 수집기 (서울시 → 초단기실황 → 이전 값) | `scenario_rain(rain_mm)`: 1h = rain_mm, 3h·15m = None, `source: "scenario"` |
+| 통제 지점 | ITS 수집 (실패 시 직전 목록) | 마지막으로 수집한 목록 (첫 갱신 전이면 없음) |
+| 결과 | 캐시 교체 → `get_snapshot()` | 돌려주기만 함 (캐시 그대로) |
+
+- 안에서 하는 일: `risk.model.compute_risks`(위험도) → `risk.exclusion.rule1_excluded`(통제 종류별) ·
+  `rule2_excluded`(침수경보 기준) → 이유 태그(정적 요인 → 도로 통제 → 침수경보 순).
+- 3시간 강우를 모르면 규칙 2 는 1시간 72mm 조건만 본다 (초단기실황 대체 때와 같음).
+  그래서 강우 입력이 같으면 초단기실황 대체 결과와 시나리오 결과가 같다 (테스트로 확인).
+- 실제 강남역 데이터(통제 지점 1건)에서 강우 값 하나 계산에 약 30ms → API 요청마다 불러도 된다.
 
 ## 스냅샷 (`get_snapshot()`)
 
@@ -25,7 +43,7 @@ API (app/api/routes.py)
 | `risk` | `{segment_id: 위험도}`. 0 인 구간 생략 → `find_route(risk=...)` 에 그대로 |
 | `excluded` | 통행 제외 `segment_id` 집합 (규칙 1 ∪ 규칙 2) → `find_route(excluded=...)` |
 | `reasons` | `{segment_id: [이유 태그]}` — 위험도 > 0 또는 통행 제외 구간만. 예) `["침수흔적 2회 (2011·2022)", "도로 통제 (전면통제)"]` |
-| `rain` | `rain_1h_mm`, `rain_3h_mm`(모르면 null), `rain_15m_mm`(모르면 null), `updated_at`, `delayed`, + `source`(seoul/kma/previous/none), `last_normal_at`(마지막 서울시 정상 관측) |
+| `rain` | `rain_1h_mm`, `rain_3h_mm`(모르면 null), `rain_15m_mm`(모르면 null), `updated_at`, `delayed`, + `source`(seoul/kma/previous/none, 시나리오는 scenario), `last_normal_at`(마지막 서울시 정상 관측) |
 | `control_points` | 규칙 1 통제 지점 `[{lng, lat, kind, message}]` |
 | `computed_at` | 계산 시각 |
 
