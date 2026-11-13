@@ -13,17 +13,20 @@ from collectors.its_control import ControlPoint
 from collectors.kma_ultra import KmaRain
 from collectors.seoul_rain import SeoulRain
 from risk.cache import (
+    CLOSURE_KIND,
     RULE2_REASON,
     Collectors,
     RiskCache,
     StaticData,
     build_risk_cache,
+    closure_points,
     is_data_unavailable,
     is_scenario,
     scenario_rain,
 )
 from routing.astar import find_route
 from routing.graph import build_graph
+from routing.locate import to_lnglat
 
 S = Settings(_env_file=None)
 NOW = datetime(2026, 11, 9, 20, 0, tzinfo=KST)
@@ -207,21 +210,22 @@ def test_old_aws_ignored_and_15m_override():
 
 # ---------- build_risk_cache · rain_mm 시나리오 ----------
 def test_build_risk_cache_pure_function():
-    snap = build_risk_cache(static(), scenario_rain(80), [], NOW, S)
+    snap = build_risk_cache(static(), scenario_rain(80), [], NOW, S, scenario=True)
     assert snap["risk"][1] == pytest.approx(0.85) and 3 not in snap["risk"]
     assert snap["excluded"] == {2}                       # 80mm ≥ 72mm → 침수흔적 있는 지하보도
     assert snap["reasons"][2][-1] == RULE2_REASON
     assert snap["rain"] == {"rain_1h_mm": 80.0, "rain_3h_mm": None, "rain_15m_mm": None, "updated_at": None,
                             "delayed": False, "source": "scenario", "last_normal_at": None}
     assert is_scenario(snap) and snap["computed_at"] == NOW.isoformat()
+    assert not is_scenario(build_risk_cache(static(), scenario_rain(80), [], NOW, S))   # 기본은 실시간
 
 
 def test_update_and_scenario_share_the_same_calculation():
     # 초단기실황 대체(3h·15m 모름)와 rain_mm 시나리오는 강우 입력이 같으므로 결과도 같아야 한다
     cache = make(Fake(kma=KmaRain(75.0, NOW)))
     cache.update(NOW)
-    live, scen = cache.get_snapshot(), cache.scenario(75.0, NOW)
-    assert live["rain"]["source"] == "kma" and is_scenario(scen)
+    live, scen = cache.get_snapshot(), cache.scenario(75.0, now=NOW)
+    assert live["rain"]["source"] == "kma" and is_scenario(scen) and not is_scenario(live)
     for key in ("risk", "excluded", "reasons"):
         assert live[key] == scen[key]
 
@@ -230,8 +234,8 @@ def test_scenario_3h_unknown_only_72mm_rule():
     cache = make(Fake(seoul=seoul(60, 95)))              # 실시간: 1h 60 & 3h 95 → 규칙 2 충족
     cache.update(NOW)
     assert cache.get_snapshot()["excluded"] == {2}
-    assert cache.scenario(60, NOW)["excluded"] == set()  # 시나리오: 3h 모름 → 72mm 조건만
-    assert cache.scenario(72, NOW)["excluded"] == {2}
+    assert cache.scenario(60, now=NOW)["excluded"] == set()  # 시나리오: 3h 모름 → 72mm 조건만
+    assert cache.scenario(72, now=NOW)["excluded"] == {2}
 
 
 def test_scenario_applies_latest_controls_and_keeps_cache():
@@ -239,7 +243,7 @@ def test_scenario_applies_latest_controls_and_keeps_cache():
     cache = make(Fake(seoul=seoul(0), its=[cp]))
     cache.update(NOW)
     before = cache.get_snapshot()
-    scen = cache.scenario(80, NOW)
+    scen = cache.scenario(80, now=NOW)
     assert scen["excluded"] == {1, 2, 3}                 # 규칙 1(구간 1·3) ∪ 규칙 2(구간 2)
     assert scen["reasons"][3] == ["도로 통제 (땅꺼짐)"]
     assert scen["control_points"][0]["kind"] == "땅꺼짐"
@@ -248,9 +252,58 @@ def test_scenario_applies_latest_controls_and_keeps_cache():
 
 def test_scenario_before_first_update():
     cache = make(Fake())
-    scen = cache.scenario(60, NOW)
+    scen = cache.scenario(60, now=NOW)
     assert scen["risk"][1] == pytest.approx(0.85) and scen["control_points"] == []
     assert cache.get_snapshot() is None
+
+
+# ---------- closures 통제 시나리오 ----------
+def latlng(x, y):
+    """미터 좌표(EPSG:5186) → (위도, 경도). 가상 구간 근처에 시나리오 통제 지점을 찍기 위해"""
+    lng, lat = to_lnglat(x, y)
+    return lat, lng
+
+
+def test_closure_points_convert_to_meters():
+    cp = closure_points([latlng(-20, 10)])[0]
+    assert (cp.x, cp.y) == (pytest.approx(-20, abs=0.1), pytest.approx(10, abs=0.1))
+    assert cp.kind == CLOSURE_KIND
+
+
+def test_closures_exclude_like_rule1_and_keep_cache():
+    cache = make(Fake(seoul=seoul(0)))
+    cache.update(NOW)
+    before = cache.get_snapshot()
+    scen = cache.scenario(0, [latlng(-20, 10)], now=NOW)   # (-20,10): 구간 1 은 22m·3 은 20m·2 는 46m
+    assert scen["excluded"] == {1, 3}
+    assert scen["reasons"][3] == ["도로 통제 (시나리오)"]
+    assert scen["control_points"][-1]["kind"] == "시나리오" and is_scenario(scen)
+    assert cache.get_snapshot() is before and before["excluded"] == set()   # 캐시는 그대로
+
+
+def test_closures_add_to_real_controls():
+    cp = ControlPoint(x=50, y=10, lng=127.0, lat=37.5, kind="전면통제", message="")   # 구간 2 만 (10m)
+    cache = make(Fake(seoul=seoul(0), its=[cp]))
+    cache.update(NOW)
+    scen = cache.scenario(0, [latlng(-20, 10)], now=NOW)
+    assert scen["excluded"] == {1, 2, 3}
+    assert scen["reasons"][2] == ["침수흔적 1회 (2022)", "지하보도", "도로 통제 (전면통제)"]
+
+
+def test_closures_only_use_live_rain():
+    # rain_mm 없이 closures 만 → 실시간 강우(3시간 강우 포함)를 그대로 써서 규칙 2 도 실제 조건으로
+    cache = make(Fake(seoul=seoul(55, 95)))                 # 1h 55 & 3h 95 → 규칙 2 충족
+    cache.update(NOW)
+    live = cache.get_snapshot()
+    scen = cache.scenario(closures=[latlng(-20, 10)], base_rain=live["rain"], now=NOW)
+    assert scen["excluded"] == {1, 2, 3}                    # closures(1·3) ∪ 규칙 2(2)
+    assert scen["rain"] == live["rain"]                     # 관측 시각·3시간 강우까지 실시간 그대로
+    assert is_scenario(scen)
+
+
+def test_scenario_needs_rain():
+    with pytest.raises(ValueError):
+        make(Fake()).scenario(closures=[latlng(0, 0)])
 
 
 @pytest.mark.skipif(not __import__("pathlib").Path(S.segments_path).exists(), reason="segments.gpkg 없음")
