@@ -92,6 +92,8 @@ def _route_json(mode, r: RouteResult, G, start, end, base_min, speed, ri: RiskIn
         "walk_speed_mps": speed,
         "detour_min": max(0, minutes - base_min),
         "risk_segment_count": r.risk_segment_count,
+        "danger_length_m": round(r.danger_length_m),
+        "risk_cost": round(r.risk_cost, 1),
         "max_grade": risk_grade(r.max_risk, s),
         "geometry": {"type": "LineString", "coordinates": coords},
         "hazards": hazards,

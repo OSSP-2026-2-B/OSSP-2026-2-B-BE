@@ -24,6 +24,8 @@ class RouteResult:
     risk_segment_count: int                # '위험' 등급 이상 구간 수
     max_risk: float                        # 경로에서 가장 높은 위험도
     risky_segment_ids: list[int] = field(default_factory=list)
+    danger_length_m: float = 0.0           # '위험' 등급 이상 구간 길이 합
+    risk_cost: float = 0.0                 # Σ 위험도 × 길이
 
 
 def find_route(
@@ -62,14 +64,14 @@ def find_route(
         return None
 
     # 경로의 교차점 사이마다 실제로 고른 길 조각을 다시 찾아 결과 정리
-    seg_ids, dist, total = [], 0.0, 0.0
+    seg_ids, lengths, total = [], [], 0.0
     for a, b in zip(path, path[1:], strict=False):
         best = min(
             (d for d in G[a][b].values() if edge_cost(d) is not None),
             key=edge_cost,
         )
         seg_ids.append(best["segment_id"])
-        dist += best["length"]
+        lengths.append(best["length"])
         total += edge_cost(best)
 
     risks = [risk.get(s, 0.0) for s in seg_ids]
@@ -77,9 +79,11 @@ def find_route(
     return RouteResult(
         nodes=path,
         segment_ids=seg_ids,
-        distance_m=dist,
+        distance_m=sum(lengths),
         cost=total,
         risk_segment_count=len(risky),
         max_risk=max(risks, default=0.0),
         risky_segment_ids=risky,
+        danger_length_m=sum(length for length, r in zip(lengths, risks, strict=True) if r >= DANGER),
+        risk_cost=sum(length * r for length, r in zip(lengths, risks, strict=True)),
     )

@@ -86,3 +86,22 @@ def test_excluded_segment_is_never_used(G):
 def test_no_route_returns_none(G):
     # 3 으로 들어가는 길이 모두 제외되면 경로 없음 → API 에서 임시주거시설 안내
     assert find_route(G, 1, 3, alpha=5, excluded={11, 13}) is None
+
+
+def test_card_values(G):
+    # 최단(α=0)은 위쪽 길 10번(100m, 위험도 0.9) + 11번(100m, 0)을 지난다
+    r = find_route(G, 1, 3, alpha=0, risk={10: 0.9})
+    assert r.danger_length_m == 100           # 0.9 ≥ 0.6 인 10번만
+    assert r.risk_cost == pytest.approx(90)   # 100 × 0.9 + 100 × 0
+
+    # 균형(α=5)은 아래로 돌아가서 위험 구간을 지나지 않는다
+    r = find_route(G, 1, 3, alpha=5, risk={10: 0.9})
+    assert r.danger_length_m == 0
+    assert r.risk_cost == 0
+
+
+def test_card_values_caution_only(G):
+    # 주의(0.3)는 통과 거리에는 안 들어가고 누적 위험에만 들어간다
+    r = find_route(G, 1, 3, alpha=5, risk={10: 0.3})
+    assert r.danger_length_m == 0
+    assert r.risk_cost == pytest.approx(30)   # 100 × 0.3
