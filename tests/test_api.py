@@ -201,7 +201,7 @@ def test_route_closures_only_use_live_rain(monkeypatch):
     snap = fake_snapshot(rain_1h_mm=30.0)
     use_snapshot(monkeypatch, snap)
     body = client.post("/api/route", json={"start": START, "end": END, "closures": [END]})
-    assert body.json()["fallback"] is not None                   # 통제는 적용됨 (목적지 막힘 → 시설 안내)                              # 통제는 적용됨
+    assert body.json()["fallback"] is not None   # 통제는 적용됨 (목적지 막힘 → 시설 안내)                              # 통제는 적용됨
     mid = middle_of_route()
     body = client.post("/api/route", json={"start": START, "end": END,
                                            "closures": [{"lat": mid["lat"], "lng": mid["lng"]}]}).json()
