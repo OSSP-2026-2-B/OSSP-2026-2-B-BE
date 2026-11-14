@@ -53,15 +53,43 @@ def test_balanced_avoids_risk():
     assert shortest["walk_speed_mps"] == 0.9  # 30mm 이면 폭우 속도
 
 
-def test_no_route():
+def test_no_route_gives_shelter():
     G, index = get_graph()
     dst, _ = index.nearest(*to_xy(END.lat, END.lng))
     blocked = {key for _, _, key in G.edges(dst, keys=True)}  # 도착 교차점의 모든 길 통제
 
+    out = plan_routes(START, END, ["balanced"], RiskInput(excluded=blocked))
+    fb = out["fallback"]
+    assert out["routes"] == []
+    assert fb["type"] == "shelter"
+    assert fb["reachable"] is True
+    assert fb["duration_min"] > 0
+    coords = fb["geometry"]["coordinates"]
+    assert coords[0] == [START.lng, START.lat]   # 출발 지점에서 시작
+    assert coords[-1] == fb["location"]           # 시설에서 끝남
+
+
+def test_shelter_unreachable_gives_straight_distance():
+    G, index = get_graph()
+    src, _ = index.nearest(*to_xy(START.lat, START.lng))
+    blocked = {key for _, _, key in G.edges(src, keys=True)}  # 출발 교차점의 모든 길 통제
+
+    fb = plan_routes(START, END, ["balanced"], RiskInput(excluded=blocked))["fallback"]
+    assert fb["reachable"] is False
+    assert fb["geometry"] is None
+    assert fb["duration_min"] is None
+    assert fb["distance_m"] > 0
+
+
+def test_no_route_without_shelters(monkeypatch):
+    monkeypatch.setattr("routing.service.get_shelters", lambda: [])
+    G, index = get_graph()
+    dst, _ = index.nearest(*to_xy(END.lat, END.lng))
+    blocked = {key for _, _, key in G.edges(dst, keys=True)}
+
     with pytest.raises(ApiError) as e:
         plan_routes(START, END, ["balanced"], RiskInput(excluded=blocked))
     assert e.value.code == "NO_ROUTE"
-
 
 def test_out_of_pilot_area_api():
     res = TestClient(app).post("/api/route", json={

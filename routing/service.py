@@ -9,6 +9,7 @@ from app.api.errors import ApiError
 from app.config import Settings, settings
 from routing.astar import RouteResult, find_route
 from routing.cost import risk_grade
+from routing.fallback import find_shelter, get_shelters
 from routing.graph import load_graph_from_gpkg
 from routing.locate import NodeIndex, in_pilot_area, to_lnglat, to_xy
 from routing.walk import duration_min, walk_speed
@@ -52,16 +53,16 @@ def plan_routes(start, end, modes: list[str], ri: RiskInput, s: Settings = setti
         m: find_route(G, src, dst, s.alphas[m], ri.risk, ri.excluded, speed)
         for m in dict.fromkeys(["shortest", *modes])
     }
+    rain = {"rain_1h_mm": ri.rain_1h_mm, "updated_at": ri.updated_at, "scenario": ri.scenario}
     if found["shortest"] is None:
-        raise ApiError(404, "NO_ROUTE", "통행 제외 구간 때문에 목적지까지 갈 수 있는 경로가 없습니다.")
+        fallback = find_shelter(G, index, src, start, ri.risk, ri.excluded, ri.rain_1h_mm, get_shelters(), s)
+        if fallback is None:
+            raise ApiError(404, "NO_ROUTE", "경로와 안내할 임시주거시설 모두 없습니다.")
+        return {"rain": rain, "routes": [], "fallback": fallback}
 
     base_min = duration_min(found["shortest"].distance_m, ri.rain_1h_mm, s)
     routes = [_route_json(m, found[m], G, start, end, base_min, speed, ri, s) for m in modes]
-    return {
-        "rain": {"rain_1h_mm": ri.rain_1h_mm, "updated_at": ri.updated_at, "scenario": ri.scenario},
-        "routes": routes,
-        "fallback": None,
-    }
+    return {"rain": rain, "routes": routes, "fallback": None}
 
 
 def _route_json(mode, r: RouteResult, G, start, end, base_min, speed, ri: RiskInput, s) -> dict:

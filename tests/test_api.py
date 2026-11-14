@@ -188,18 +188,20 @@ def test_route_closure_forces_detour():
     assert body["routes"][0]["distance_m"] > mid["distance_m"]   # 통제 지점을 피해 돌아감
 
 
-def test_route_closure_at_destination_no_route():
-    # 도착지 주변 30m 가 모두 막히면 경로 없음 → 임시주거시설 안내(fallback)를 시연할 수 있는 상황
+def test_route_closure_at_destination_gives_shelter():
+    # 도착지 주변 30m 가 모두 막히면 경로 없음 → 임시주거시설 안내(fallback)
     res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0, "closures": [END]})
-    assert res.status_code == 404
-    assert res.json()["error"]["code"] == "NO_ROUTE"
+    assert res.status_code == 200
+    body = res.json()
+    assert body["routes"] == []
+    assert body["fallback"]["type"] == "shelter"
 
 
 def test_route_closures_only_use_live_rain(monkeypatch):
     snap = fake_snapshot(rain_1h_mm=30.0)
     use_snapshot(monkeypatch, snap)
     body = client.post("/api/route", json={"start": START, "end": END, "closures": [END]})
-    assert body.status_code == 404                               # 통제는 적용됨
+    assert body.json()["fallback"] is not None   # 통제 적용 → 목적지 막힘 → 시설 안내
     mid = middle_of_route()
     body = client.post("/api/route", json={"start": START, "end": END,
                                            "closures": [{"lat": mid["lat"], "lng": mid["lng"]}]}).json()
@@ -211,7 +213,7 @@ def test_route_closures_only_still_needs_live_data(monkeypatch):
     res = client.post("/api/route", json={"start": START, "end": END, "closures": [END]})
     assert res.status_code == 503                                # 강우는 실시간이 필요
     res = client.post("/api/route", json={"start": START, "end": END, "rain_mm": 0, "closures": [END]})
-    assert res.status_code == 404                                # rain_mm 도 주면 503 없이 계산
+    assert res.status_code == 200                                # rain_mm도 주면 503 없이 계산
 
 
 def test_route_closures_validation():
