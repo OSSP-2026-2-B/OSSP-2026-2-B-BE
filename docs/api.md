@@ -9,6 +9,7 @@
 
 | 항목 | 내용 |
 | --- | --- |
+| Base URL (배포) | `https://ossp-flood-route-api.onrender.com` (15분 미사용 시 잠들고, 첫 요청에 약 1분 걸림) |
 | Base URL (로컬) | `http://localhost:8080` |
 | 서버 실행 | `uvicorn app.main:app --reload --port 8080` (레포 README 참고, API 키 없이 실행 가능) |
 | 자동 문서 | `http://localhost:8080/docs` (서버 실행 중일 때) |
