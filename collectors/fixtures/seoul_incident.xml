@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AccInfo>
+<list_total_count>4</list_total_count>
+<RESULT>
+<CODE>INFO-000</CODE>
+<MESSAGE>정상 처리되었습니다</MESSAGE>
+</RESULT>
+<row>
+<acc_id>9000001</acc_id>
+<occr_date>20261028</occr_date>
+<occr_time>194000</occr_time>
+<exp_clr_date>20261028</exp_clr_date>
+<exp_clr_time>235900</exp_clr_time>
+<acc_type>A09</acc_type>
+<acc_dtype>09B16</acc_dtype>
+<link_id>1220018300</link_id>
+<grs80tm_x>202401.68</grs80tm_x>
+<grs80tm_y>444341.32</grs80tm_y>
+<acc_info>강남대로 강남역 사거리 도로 침수로 양방향 전면통제</acc_info>
+<acc_road_code>010</acc_road_code>
+</row>
+<row>
+<acc_id>9000002</acc_id>
+<occr_date>20261028</occr_date>
+<occr_time>090000</occr_time>
+<exp_clr_date>20261028</exp_clr_date>
+<exp_clr_time>180000</exp_clr_time>
+<acc_type>A04</acc_type>
+<acc_dtype>04B04</acc_dtype>
+<link_id>1220019200</link_id>
+<grs80tm_x>202697.12</grs80tm_x>
+<grs80tm_y>444071.71</grs80tm_y>
+<acc_info> 테헤란로 (강남역 → 역삼역) 1차로 도로보수</acc_info>
+<acc_road_code>010</acc_road_code>
+</row>
+<row>
+<acc_id>9000003</acc_id>
+<occr_date>20261028</occr_date>
+<occr_time>185000</occr_time>
+<exp_clr_date>20261028</exp_clr_date>
+<exp_clr_time>235900</exp_clr_time>
+<acc_type>A09</acc_type>
+<acc_dtype>09B15</acc_dtype>
+<link_id>1230001100</link_id>
+<grs80tm_x>205304.82</grs80tm_x>
+<grs80tm_y>445615.69</grs80tm_y>
+<acc_info>영동대로 (삼성역 → 봉은사역) 2차로 응급복구</acc_info>
+<acc_road_code>010</acc_road_code>
+</row>
+<row>
+<acc_id>1071788</acc_id>
+<occr_date>20260407</occr_date>
+<occr_time>1000</occr_time>
+<exp_clr_date>20270301</exp_clr_date>
+<exp_clr_time>000000</exp_clr_time>
+<acc_type>A04</acc_type>
+<acc_dtype>04B01</acc_dtype>
+<link_id>1220031600</link_id>
+<grs80tm_x>206076.7132692197</grs80tm_x>
+<grs80tm_y>446245.6950463236</grs80tm_y>
+<acc_info>탄천나들목 및 봉은교 구조개선공사 -일시 : 26.4.7(화)10:00~27.2.28(일) 23:59 -장소 : 봉은교 -통제 : 양방향 전면통제 </acc_info>
+<acc_road_code>009</acc_road_code>
+</row>
+</AccInfo>
