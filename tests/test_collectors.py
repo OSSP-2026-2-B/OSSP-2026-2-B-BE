@@ -146,6 +146,14 @@ def test_seoul_incident_sinkhole_by_code():
     assert seoul_incident.classify({"acc_dtype": "04B04", "acc_info": "1차로 도로보수"}) is None
 
 
+def test_seoul_incident_construction_not_excluded():
+    # 차도 공사(A04)의 전면통제는 보도 통행이 가능하므로 통제 지점으로 보지 않음
+    assert seoul_incident.classify({"acc_type": "A04", "acc_info": "봉은교 양방향 전면통제"}) is None
+    # 공사가 아닌 전면통제·공사 중 땅꺼짐은 계속 통제 지점
+    assert seoul_incident.classify({"acc_type": "A01", "acc_info": "추돌사고 전면통제"}) == "전면통제"
+    assert seoul_incident.classify({"acc_type": "A04", "acc_info": "싱크홀 복구 공사 전면통제"}) == "땅꺼짐"
+
+
 def test_seoul_incident_no_data_and_error():
     bbox = its_control.pilot_bbox(S)
     no_data = "<RESULT><CODE>INFO-200</CODE><MESSAGE>해당하는 데이터가 없습니다.</MESSAGE></RESULT>"

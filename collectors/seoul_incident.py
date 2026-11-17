@@ -19,6 +19,7 @@ FIXTURE = "seoul_incident.xml"
 ROWS = 1000                # 한 번에 받을 수 있는 최대 건수 (서울 전체 돌발은 보통 수십 건)
 SINKHOLE_CODE = "09B15"    # 돌발 세부 유형: 도로침하
 NO_DATA = "INFO-200"       # 해당하는 데이터 없음
+CONSTRUCTION_TYPE = "A04"  # 돌발 유형: 공사 (차도 통제라 보도는 통제되지 않아 전면통제로 보지 않음)
 
 _to_lnglat = Transformer.from_crs("EPSG:5181", "EPSG:4326", always_xy=True)
 _to_5186 = Transformer.from_crs("EPSG:5181", "EPSG:5186", always_xy=True)
@@ -28,6 +29,8 @@ def classify(row: dict) -> str | None:
     text = row.get("acc_info", "")
     if row.get("acc_dtype") == SINKHOLE_CODE or any(w in text for w in SINKHOLE_WORDS):
         return "땅꺼짐"
+    if row.get("acc_type") == CONSTRUCTION_TYPE:
+        return None
     if any(w in text for w in FULL_BLOCK_WORDS):
         return "전면통제"
     return None
