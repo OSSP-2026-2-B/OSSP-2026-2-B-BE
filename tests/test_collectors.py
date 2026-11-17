@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from app.config import Settings
-from collectors import aws_rain, its_control, kma_ultra, seoul_rain
+from collectors import aws_rain, its_control, kma_ultra, seoul_incident, seoul_rain
 from collectors.common import KST, CollectorError, read_fixture
 
 S = Settings(_env_file=None)
@@ -129,6 +129,39 @@ def test_its_sinkhole_detected():
     assert its_control.classify({"message": "1차로 공사"}) is None
 
 
+# ---------- 서울시 돌발 정보 (통제 지점) ----------
+def test_seoul_incident_only_full_block_or_sinkhole_in_bbox():
+    pts = seoul_incident.parse(read_fixture(seoul_incident.FIXTURE), its_control.pilot_bbox(S))
+    # 강남역 사거리 전면통제만 남음 (테헤란로 = 부분 통제, 영동대로 도로침하·봉은교 전면통제 = 범위 밖)
+    assert [p.kind for p in pts] == ["전면통제"]
+    p = pts[0]
+    # EPSG:5181 → 경위도·EPSG:5186 변환 확인
+    assert abs(p.lng - 127.02716) < 0.0005 and abs(p.lat - 37.49853) < 0.0005
+    assert 200_000 < p.x < 206_000 and 541_000 < p.y < 547_000
+
+
+def test_seoul_incident_sinkhole_by_code():
+    # 문장에 땅꺼짐 단어가 없어도 세부 유형 09B15(도로침하)이면 땅꺼짐
+    assert seoul_incident.classify({"acc_dtype": "09B15", "acc_info": "2차로 응급복구"}) == "땅꺼짐"
+    assert seoul_incident.classify({"acc_dtype": "04B04", "acc_info": "1차로 도로보수"}) is None
+
+
+def test_seoul_incident_construction_not_excluded():
+    # 차도 공사(A04)의 전면통제는 보도 통행이 가능하므로 통제 지점으로 보지 않음
+    assert seoul_incident.classify({"acc_type": "A04", "acc_info": "봉은교 양방향 전면통제"}) is None
+    # 공사가 아닌 전면통제·공사 중 땅꺼짐은 계속 통제 지점
+    assert seoul_incident.classify({"acc_type": "A01", "acc_info": "추돌사고 전면통제"}) == "전면통제"
+    assert seoul_incident.classify({"acc_type": "A04", "acc_info": "싱크홀 복구 공사 전면통제"}) == "땅꺼짐"
+
+
+def test_seoul_incident_no_data_and_error():
+    bbox = its_control.pilot_bbox(S)
+    no_data = "<RESULT><CODE>INFO-200</CODE><MESSAGE>해당하는 데이터가 없습니다.</MESSAGE></RESULT>"
+    assert seoul_incident.parse(no_data, bbox) == []
+    with pytest.raises(CollectorError):
+        seoul_incident.parse("<RESULT><CODE>ERROR-301</CODE><MESSAGE>오류</MESSAGE></RESULT>", bbox)
+
+
 # ---------- live 모드인데 키가 없으면 호출하지 않고 오류 ----------
 @pytest.mark.parametrize("fetch", [seoul_rain.fetch, kma_ultra.fetch, aws_rain.fetch])
 def test_live_without_key(fetch):
@@ -136,9 +169,10 @@ def test_live_without_key(fetch):
         fetch(LIVE, now=NOW)
 
 
-def test_its_live_without_key():
+@pytest.mark.parametrize("fetch", [its_control.fetch, seoul_incident.fetch])
+def test_controls_live_without_key(fetch):
     with pytest.raises(CollectorError):
-        its_control.fetch(LIVE)
+        fetch(LIVE)
 
 
 def test_http_get_error_hides_key(monkeypatch):

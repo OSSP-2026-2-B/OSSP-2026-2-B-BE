@@ -65,7 +65,7 @@ class Fake:
             seoul=lambda s, now: self._ret(self.seoul_v),
             kma=lambda s, now: self._ret(self.kma_v),
             aws=lambda s, now: self._ret(self.aws_v),
-            its=lambda s: self._ret(self.its_v),
+            incident=lambda s: self._ret(self.its_v),
         )
 
 

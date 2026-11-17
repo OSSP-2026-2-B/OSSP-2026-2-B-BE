@@ -10,7 +10,7 @@
        ├─ collectors.seoul_rain   서울시 10분 강우 → 1h·3h       (기본 소스)
        ├─ collectors.kma_ultra    초단기실황 RN1 → 1h             (서울시 20분 넘게 없을 때 대체)
        ├─ collectors.aws_rain     방재 AWS RN-15m → 15m           (O_H 침수예보 조건)
-       ├─ collectors.its_control  ITS 전면통제·땅꺼짐 지점         (통행 제외 규칙 1)
+       ├─ collectors.seoul_incident 서울시 돌발 전면통제·땅꺼짐 지점 (통행 제외 규칙 1)
        └─ build_risk_cache(정적, 강우, 통제 지점) → 스냅샷 교체
 API (app/api/routes.py)
   ├─ 시나리오 없음: risk.cache.get_snapshot() / is_data_unavailable(snapshot)  (True 면 503 DATA_UNAVAILABLE)
@@ -28,7 +28,7 @@ API (app/api/routes.py)
 | | 실서비스 `RiskCache.update()` | 시연 `RiskCache.scenario(rain_mm, closures, base_rain)` |
 | --- | --- | --- |
 | 강우 | 수집기 (서울시 → 초단기실황 → 이전 값) | `rain_mm` 이 있으면 `scenario_rain(rain_mm)`: 1h = rain_mm, 3h·15m = None, `source: "scenario"`. 없으면 `base_rain`(실시간 스냅샷의 rain) 그대로 |
-| 통제 지점 | ITS 수집 (실패 시 직전 목록) | 마지막으로 수집한 실제 통제 + `closures`(종류 `시나리오` → 이유 태그 `도로 통제 (시나리오)`) |
+| 통제 지점 | 서울시 돌발 정보 수집 (실패 시 직전 목록) | 마지막으로 수집한 실제 통제 + `closures`(종류 `시나리오` → 이유 태그 `도로 통제 (시나리오)`) |
 | `scenario` | `False` | `True` |
 | 결과 | 캐시 교체 → `get_snapshot()` | 돌려주기만 함 (캐시 그대로) |
 
@@ -61,7 +61,7 @@ API (app/api/routes.py)
 4. 마지막 서울시 정상 관측이 60분 초과 → `is_data_unavailable()` True → `/api/route` 503 `DATA_UNAVAILABLE`
 
 - 방재 AWS 15분 값이 실패하거나 20분보다 오래되면 `null` (1시간 55mm 조건은 계속 동작).
-- ITS 수집 실패 시 직전 통제 목록을 유지 (통제 누락이 더 위험하므로).
+- 통제 정보 수집 실패 시 직전 통제 목록을 유지 (통제 누락이 더 위험하므로).
 
 ## 수집기 모드
 
@@ -69,7 +69,7 @@ API (app/api/routes.py)
 
 - `fixture` (기본): `collectors/fixtures/` 의 샘플 응답 사용. 키 없이 로컬 개발·테스트·CI.
   샘플의 관측 시각은 "지금"으로 옮겨서 돌려준다. 샘플 값: 1h 49.5mm / 3h 85.5mm / 15분 21.5mm /
-  강남역 사거리 전면통제 1건.
+  강남역 사거리 전면통제 1건. (`seoul_incident.xml`).
 - `live`: 실제 API 호출. 키가 없으면 해당 수집기는 실패로 처리되어 위 지연 규칙을 따른다.
 
 ## live 점검 결과 (2026-11-11, `COLLECTOR_MODE=live`)
@@ -84,3 +84,19 @@ API (app/api/routes.py)
 - 서울시 1시간 강우는 강우량계마다 최근 60분 10분 값을 합한 뒤 서초구청·강남구청 중 큰 값을 쓴다
   (기획서 R(t)). 강우량계마다 따로 합하므로 두 강우량계의 수집 시각이 어긋나도 두 번 더해지지 않는다.
 - 방재 AWS 가 실패하면 15분 강우는 `null` → O_H 의 15분 20mm 조건만 빠지고 1시간 55mm 조건은 동작한다.
+
+## 통제 지점: ITS → 서울시 돌발 정보 (2026-11-17)
+
+ITS `eventInfo` 는 해외 클라우드 서버 IP 를 막아 배포 서버(Render)와 AWS 서울 리전 모두에서 연결 시간 초과
+(국가교통정보센터 Q&A: 서버 IP 별 방화벽 허용 신청 필요). 같은 역할을 서울시 실시간 돌발 정보(`AccInfo`)로 대신한다.
+
+| 항목 | 서울시 `AccInfo` |
+| --- | --- |
+| 형식 | XML만 지원, 서울 전체 목록 (범위 조회 없음 → 받아서 시범 지역 사각형으로 거름) |
+| 좌표 | `grs80tm_x`·`grs80tm_y` (EPSG:5181) → 경위도·EPSG:5186 으로 변환 |
+| 전면통제 | `acc_info` 문장의 단어 (ITS 와 같은 단어 목록). 단, 공사(`acc_type` A04)는 차도 통제라 보도 통행이 가능하므로 제외 |
+| 땅꺼짐 | 세부 유형 `acc_dtype` = `09B15`(도로침하) 또는 문장의 단어 |
+| 키 | `SEOUL_OPENDATA_KEY` (강우와 같은 키) |
+
+- 세부 유형에 `09B16`(도로침수)·`09B19`(강우통제) 도 있으나 규칙 1 범위 밖이라 쓰지 않는다 (필요하면 `classify` 에 추가).
+- `collectors/its_control.py` 는 `ControlPoint`·`pilot_bbox`·단어 목록을 같이 쓰므로 남겨 둔다 (ITS 수집은 사용하지 않음).

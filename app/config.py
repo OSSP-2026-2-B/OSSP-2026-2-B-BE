@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     o_h_15m_mm: float = 20.0   # 15분 20mm 이상
     o_h_1h_mm: float = 55.0    # 또는 1시간 55mm 이상
 
-    # ---- 통행 제외 규칙 1: ITS 통제 지점 반경 ----
+    # ---- 통행 제외 규칙 1: 통제 지점 반경 ----
     its_control_radius_m: float = 30.0
 
     # ---- 전처리: 보행망·침수이력 ----
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     kma_grid_nx: int = 61                          # 초단기실황 격자 (강남구 역삼1동)
     kma_grid_ny: int = 125
     aws_stations: str = "400,401"                  # 방재 AWS 지점 (강남·서초, 2026-11-11 live 확인)
-    its_bbox_radius_m: float = 1300.0              # ITS 돌발상황 조회 범위 (그래프 수집 반경)
+    its_bbox_radius_m: float = 1300.0              # 돌발 통제 지점 조회 범위 (그래프 수집 반경)
     kma_warning_region: str = "L1100100"           # 기상특보 구역: 서울동남권 (강남·서초)  
      
     # ---- 강우 지연 규칙 ----

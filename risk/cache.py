@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.config import Settings, settings
-from collectors import aws_rain, its_control, kma_ultra, seoul_rain
+from collectors import aws_rain, kma_ultra, seoul_incident, seoul_rain
 from collectors.common import CollectorError, now_kst
 from collectors.its_control import ControlPoint
 from risk.exclusion import rule1_excluded, rule2_excluded
@@ -86,7 +86,7 @@ class Collectors:
     seoul: Callable = seoul_rain.fetch
     kma: Callable = kma_ultra.fetch
     aws: Callable = aws_rain.fetch
-    its: Callable = its_control.fetch
+    incident: Callable = seoul_incident.fetch
 
 
 class RiskCache:
@@ -201,10 +201,10 @@ class RiskCache:
 
     def _resolve_controls(self) -> list:
         try:
-            self._last_controls = self.collectors.its(self.s)
+            self._last_controls = self.collectors.incident(self.s)
         except CollectorError as e:
             # 통제 정보는 놓치면 위험하므로 실패 시 직전 목록을 유지
-            logger.warning("ITS 통제 정보 수집 실패 → 직전 %d건 유지: %s", len(self._last_controls), e)
+            logger.warning("돌발 통제 정보 수집 실패 → 직전 %d건 유지: %s", len(self._last_controls), e)
         return self._last_controls
 
     def _next_interval(self, rain: dict) -> int:
