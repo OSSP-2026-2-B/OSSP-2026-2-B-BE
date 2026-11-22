@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 from app.api.errors import ApiError
 from app.api.observations import build_observations, warning_cache
 from risk import cache as risk_cache
-from risk.layer import BBox, build_layer, segment_lines
+from risk.areas import segment_geoms
+from risk.layer import BBox, build_area_layer, build_layer, segment_lines
 from routing.service import RiskInput, check_pilot_area, plan_routes
 
 router = APIRouter(prefix="/api")
@@ -120,9 +121,15 @@ def risk_layer(
     bbox: str = Query(..., description="최소경도,최소위도,최대경도,최대위도"),
     rain_mm: float | None = Query(None, ge=0, le=RAIN_MM_MAX, description=RAIN_MM_DESC),
     closures: str | None = Query(None, description="경도,위도;경도,위도 — " + CLOSURES_DESC),
+    shape: Literal["line", "area"] = Query(
+        "line", description="line: 구간별 선 (기본) / area: '위험' 이상·통행 제외 구간을 등급별 면으로 묶음"
+    ),
 ):
     box = parse_bbox(bbox)
-    return build_layer(snapshot_for(rain_mm, parse_closures(closures)), box, segment_lines())
+    snap = snapshot_for(rain_mm, parse_closures(closures))
+    if shape == "area":
+        return build_area_layer(snap, box, segment_lines(), segment_geoms())
+    return build_layer(snap, box, segment_lines())
 
 
 @router.get("/observations")

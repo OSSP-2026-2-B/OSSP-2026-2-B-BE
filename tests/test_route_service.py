@@ -5,10 +5,11 @@ from fastapi.testclient import TestClient
 
 from app.api.errors import ApiError
 from app.api.routes import LatLng
+from app.config import Settings
 from app.main import app
-from routing.astar import find_route
+from routing.astar import RouteResult, find_route
 from routing.locate import in_pilot_area, to_lnglat, to_xy
-from routing.service import RiskInput, get_graph, plan_routes
+from routing.service import RiskInput, danger_sections, get_graph, plan_routes
 
 START = LatLng(lat=37.4979, lng=127.0276)  # 강남역
 END = LatLng(lat=37.5045, lng=127.0250)    # 북쪽 약 800m
@@ -100,3 +101,41 @@ def test_out_of_pilot_area_api():
     })
     assert res.status_code == 400
     assert res.json()["error"]["code"] == "OUT_OF_PILOT_AREA"
+
+
+def _result(lengths):
+    n = len(lengths)
+    return RouteResult(nodes=list(range(n + 1)), segment_ids=list(range(1, n + 1)), distance_m=sum(lengths),
+                       cost=0, risk_segment_count=0, max_risk=0, segment_lengths=lengths)
+
+
+def test_danger_sections_merge_short_gaps():
+    S = Settings(_env_file=None)
+    xy = [(i * 20.0, 0.0) for i in range(8)]
+    # 위험 위험 안전 위험 안전 안전 주의 → 20m 틈은 같은 곳, 40m 틈 뒤 주의는 세지 않음
+    r = _result([20.0] * 7)
+    ri = RiskInput(risk={1: 0.9, 2: 0.9, 4: 0.7, 7: 0.4},
+                   reasons={1: ["침수흔적 1회 (2022)"], 4: ["지하보도"]})
+    (sec,) = danger_sections(r, xy, ri, S)
+    assert sec["segment_ids"] == [1, 2, 4]
+    assert sec["length_m"] == 60                       # 위험 구간 길이만 (사이 안전 20m 제외)
+    assert sec["grade"] == "고위험"
+    assert sec["reasons"] == ["침수흔적 1회 (2022)", "지하보도"]
+
+    # 틈이 section_gap_m(25m) 보다 길면 다른 곳
+    r = _result([20.0, 30.0, 20.0])
+    secs = danger_sections(r, xy, RiskInput(risk={1: 0.9, 3: 0.65}), S)
+    assert [s["segment_ids"] for s in secs] == [[1], [3]]
+    assert [s["grade"] for s in secs] == ["고위험", "위험"]
+    assert danger_sections(r, xy, RiskInput(), S) == []
+
+
+def test_route_has_sections_and_areas():
+    risk = {seg: 0.9 for seg in shortest_segments()}
+    out = plan_routes(START, END, ["shortest", "balanced"], RiskInput(risk=risk, rain_1h_mm=30))
+    shortest = out["routes"][0]
+    assert shortest["danger_section_count"] == 1       # 최단 경로 전체가 위험 → 한 곳
+    assert shortest["danger_sections"][0]["length_m"] == shortest["danger_length_m"]
+    assert out["risk_areas"]["type"] == "FeatureCollection"
+    assert out["risk_areas"]["features"]
+    assert plan_routes(START, END, ["shortest"], RiskInput())["risk_areas"]["features"] == []
