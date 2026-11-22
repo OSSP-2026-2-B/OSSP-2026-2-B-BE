@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     grade_danger: float = 0.6
     grade_severe: float = 0.8
 
+    # ---- 경로 대표 등급 route_grade: '위험' 이상 구간 통과 거리 기준 ----
+    route_danger_length_m: float = 100.0   # 이 거리(m) 이상 지나면 경로 '위험', 그보다 짧으면 '주의'
+
     # ---- 통행 제외 규칙 2: 서울시 침수경보 상황판단 기준 ----
     flood_warning_1h_mm: float = 72.0      # 1시간 72mm 이상
     flood_warning_1h_alt_mm: float = 50.0  # 또는 1시간 50mm 이상이면서

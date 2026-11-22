@@ -8,7 +8,7 @@ import networkx as nx
 from app.api.errors import ApiError
 from app.config import Settings, settings
 from routing.astar import RouteResult, find_route
-from routing.cost import risk_grade
+from routing.cost import risk_grade, route_grade
 from routing.fallback import find_shelter, get_shelters
 from routing.graph import load_graph_from_gpkg
 from routing.locate import NodeIndex, in_pilot_area, to_lnglat, to_xy
@@ -96,6 +96,7 @@ def _route_json(mode, r: RouteResult, G, start, end, base_min, speed, ri: RiskIn
         "danger_length_m": round(r.danger_length_m),
         "risk_cost": round(r.risk_cost, 1),
         "max_grade": risk_grade(r.max_risk, s),
+        "route_grade": route_grade(r.danger_length_m, r.max_risk, s),
         "geometry": {"type": "LineString", "coordinates": coords},
         "hazards": hazards,
     }

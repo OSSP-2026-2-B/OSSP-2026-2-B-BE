@@ -1,4 +1,4 @@
-# API 명세 (v1.1)
+# API 명세 (v1.2)
 
 침수 위험 회피 보행 경로 서비스 백엔드 API 입니다. 필드가 바뀌면 이 문서를 먼저 수정하고 FE 에 알립니다.
 
@@ -101,6 +101,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
       "danger_length_m": 75,
       "risk_cost": 182.4,
       "max_grade": "고위험",
+      "route_grade": "주의",
       "geometry": {
         "type": "LineString",
         "coordinates": [[127.0276, 37.4979], [127.027531, 37.497866], [127.0250, 37.5045]]
@@ -125,6 +126,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
       "danger_length_m": 0,
       "risk_cost": 41.0,
       "max_grade": "주의",
+      "route_grade": "안전",
       "geometry": {
         "type": "LineString",
         "coordinates": [[127.0276, 37.4979], [127.0281, 37.5003], [127.0250, 37.5045]]
@@ -156,7 +158,8 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 | `risk_segment_count` | integer | '위험' 등급 이상 구간 수 (구간은 최대 25m) |
 | `danger_length_m` | integer | '위험' 등급 이상 구간의 길이 합 (m). 비교 카드의 "위험 구간 통과 거리" |
 | `risk_cost` | number | 누적 위험: 경로의 모든 구간에 대해 위험도 × 길이(m) 를 더한 값. 클수록 위험에 오래 노출됨 |
-| `max_grade` | string | 경로에서 가장 높은 등급: `안전` / `주의` / `위험` / `고위험` |
+| `max_grade` | string | 경로에서 가장 높은 등급: `안전` / `주의` / `위험` / `고위험`. 위험 구간을 1개만 지나도 그 등급이 됨 |
+| `route_grade` | string | 경로 대표 등급 (비교 카드의 "위험도"): `안전` / `주의` / `위험`. '위험' 이상 구간 통과 거리(`danger_length_m`)가 100m 이상이면 `위험`, 그보다 짧으면 `주의`, 위험 구간이 없으면 `안전` |
 | `geometry` | GeoJSON LineString | 경로 선 `[경도, 위도]` 목록. 요청한 출발 지점에서 시작해 도착 지점에서 끝남 |
 | `hazards` | object[] | 경로 위 '위험' 등급 이상 구간 (화면의 "왜 이 길을 피하나요?"). 없으면 `[]` |
 
@@ -444,3 +447,4 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&rain_mm=60&closures=127.0
 - v0.1.7~v0.1.8 (11/13): 발표 시연용 시나리오 `rain_mm`·`closures`
 - v1.0 (11/13): FE 공유용 최종본. 비교 카드 값 `danger_length_m`·`risk_cost` 추가, 경로가 없으면 404 대신 200 + `fallback` (11/15 서버 반영)
 - v1.1 (11/15): `fallback`(임시주거시설 안내)·`danger_length_m`·`risk_cost` 서버 반영
+- v1.2 (11/22): 경로 대표 등급 `route_grade` 추가 (비교 카드 위험도는 `max_grade` 대신 이 값 사용)
