@@ -1,4 +1,4 @@
-# API 명세 (v1.2)
+# API 명세 (v1.3)
 
 침수 위험 회피 보행 경로 서비스 백엔드 API 입니다. 필드가 바뀌면 이 문서를 먼저 수정하고 FE 에 알립니다.
 
@@ -47,7 +47,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 | 메서드 | 경로 | 화면 | 설명 |
 | --- | --- | --- | --- |
 | POST | `/api/route` | 경로 비교 화면 | 출발·도착지로 모드별 경로 계산 |
-| GET | `/api/risk-layer` | 지도 | 화면 범위 안 구간별 위험 등급 |
+| GET | `/api/risk-layer` | 지도 | 화면 범위 안 구간별 위험 등급 (`shape=area` 면 등급별 면) |
 | GET | `/api/observations` | 강우 상태 바 | 현재 강우, 특보, [확인]/[추정] 배지 |
 | GET | `/health` | - | 서버 상태 확인. `{ "status": "ok" }` |
 
@@ -114,7 +114,17 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
           "location": [127.0265, 37.4998],
           "reasons": ["침수흔적 3회 (2010·2011·2022)"]
         }
-      ]
+      ],
+      "danger_sections": [
+        {
+          "grade": "고위험",
+          "length_m": 75,
+          "segment_ids": [1023, 1024, 1025],
+          "location": [127.0265, 37.4998],
+          "reasons": ["침수흔적 3회 (2010·2011·2022)"]
+        }
+      ],
+      "danger_section_count": 1
     },
     {
       "mode": "balanced",
@@ -131,9 +141,31 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
         "type": "LineString",
         "coordinates": [[127.0276, 37.4979], [127.0281, 37.5003], [127.0250, 37.5045]]
       },
-      "hazards": []
+      "hazards": [],
+      "danger_sections": [],
+      "danger_section_count": 0
     }
   ],
+  "risk_areas": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[127.0262, 37.4996], [127.0268, 37.4996], [127.0268, 37.5001], [127.0262, 37.4996]]]
+        },
+        "properties": {
+          "area_id": 1,
+          "grade": "고위험",
+          "excluded": false,
+          "length_m": 312,
+          "reasons": ["침수흔적 3회 (2010·2011·2022)", "침수흔적 1회 (2022)"],
+          "center": [127.0265, 37.4998]
+        }
+      }
+    ]
+  },
   "fallback": null
 }
 ```
@@ -155,13 +187,15 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 | `duration_min` | integer | 소요 시간 (분, 올림). 강우에 따른 보행 속도로 계산 |
 | `walk_speed_mps` | number | 적용한 보행 속도 (m/s). 1시간 강우 1mm 미만 1.2, 20mm 미만 1.05, 20mm 이상 0.9 |
 | `detour_min` | integer | 최단 경로보다 더 걸리는 시간 (분). 최단은 0 |
-| `risk_segment_count` | integer | '위험' 등급 이상 구간 수 (구간은 최대 25m) |
+| `risk_segment_count` | integer | '위험' 등급 이상 구간 수 (구간은 최대 25m). 화면에는 `danger_section_count` 를 쓰세요 |
 | `danger_length_m` | integer | '위험' 등급 이상 구간의 길이 합 (m). 비교 카드의 "위험 구간 통과 거리" |
 | `risk_cost` | number | 누적 위험: 경로의 모든 구간에 대해 위험도 × 길이(m) 를 더한 값. 클수록 위험에 오래 노출됨 |
 | `max_grade` | string | 경로에서 가장 높은 등급: `안전` / `주의` / `위험` / `고위험`. 위험 구간을 1개만 지나도 그 등급이 됨 |
 | `route_grade` | string | 경로 대표 등급 (비교 카드의 "위험도"): `안전` / `주의` / `위험`. '위험' 이상 구간 통과 거리(`danger_length_m`)가 100m 이상이면 `위험`, 그보다 짧으면 `주의`, 위험 구간이 없으면 `안전` |
 | `geometry` | GeoJSON LineString | 경로 선 `[경도, 위도]` 목록. 요청한 출발 지점에서 시작해 도착 지점에서 끝남 |
-| `hazards` | object[] | 경로 위 '위험' 등급 이상 구간 (화면의 "왜 이 길을 피하나요?"). 없으면 `[]` |
+| `hazards` | object[] | 경로 위 '위험' 등급 이상 구간, 25m 단위 하나씩 (경로 선 위 덧칠용). 없으면 `[]` |
+| `danger_sections` | object[] | 경로 위에서 이어진 '위험' 이상 구간을 한 곳으로 묶은 목록 (화면의 "왜 이 길을 피하나요?"). 없으면 `[]` |
+| `danger_section_count` | integer | `danger_sections` 개수. 비교 카드의 "위험 구간 N곳" |
 
 **`hazards[]`**
 
@@ -173,7 +207,24 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 | `location` | `[경도, 위도]` | 구간 가운데 위치 |
 | `reasons` | string[] | 위험 이유 태그. [6. 참고 값](#6-참고-값) 참고 |
 
-- 위험 구간은 25m 단위라 같은 도로의 이어진 구간이 여러 개로 나옵니다. 화면에서는 이어진 같은 이유의 구간을 묶어 표시합니다.
+- `hazards` 는 25m 단위라 같은 도로의 이어진 구간이 여러 개로 나옵니다. 개수·목록은 서버가 묶은 `danger_sections` 를 쓰세요.
+
+**`danger_sections[]`**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `grade` | string | 묶인 구간 중 가장 높은 등급: `위험` / `고위험` |
+| `length_m` | integer | 묶인 '위험' 이상 구간의 길이 합 (m). 모든 곳의 합 = `danger_length_m` (반올림 오차 제외) |
+| `segment_ids` | integer[] | 묶인 구간 번호 (경로 순서, `hazards[].segment_id` 와 같은 번호) |
+| `location` | `[경도, 위도]` | 묶음 가운데쯤 구간의 가운데 위치 |
+| `reasons` | string[] | 묶인 구간들의 이유 태그 합집합 (많은 구간에 붙은 태그부터) |
+
+- 경로 순서대로 '위험' 이상 구간을 이어 붙이고, 사이에 낀 안전한 길이 25m 이하면 같은 곳으로 봅니다.
+- 두 경로의 `segment_ids` 를 비교하면 안전 경로가 실제로 피한 곳을 알 수 있습니다 (예: 최단 경로의 곳 중 `segment_ids` 가 안전 경로와 하나도 겹치지 않는 곳).
+
+**`risk_areas`**
+
+경로 후보들 주변 150m 안의 '위험' 이상·통행 제외 구간을 등급별 면으로 묶은 GeoJSON FeatureCollection 입니다. 경로를 보여 주는 동안 지도에는 이 면만 그리면 됩니다 (`/api/risk-layer` 대신). `features[]` 는 [`/api/risk-layer?shape=area`](#응답-200-shapearea) 와 같은 모양입니다. 경로가 없으면 (`fallback`) 빈 `features` 입니다.
 
 ### 응답 200: 경로가 없을 때 (임시주거시설 안내)
 
@@ -183,6 +234,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 {
   "rain": { "rain_1h_mm": 80.0, "updated_at": null, "scenario": true },
   "routes": [],
+  "risk_areas": { "type": "FeatureCollection", "features": [] },
   "fallback": {
     "type": "shelter",
     "shelter_id": "746",
@@ -236,12 +288,14 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 ## 2. GET `/api/risk-layer`
 
 지도 화면 범위 안의 구간별 위험 등급을 GeoJSON 으로 돌려줍니다. 지도를 움직일 때마다 호출합니다.
+`shape=area` 를 주면 25m 구간 대신 이어진 '위험' 이상 구간을 등급별 면으로 묶어 돌려줍니다 (지도 표시는 이쪽을 권장).
 
 ### 요청
 
 ```
 GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505
 GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&rain_mm=60&closures=127.0263,37.5010
+GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&shape=area
 ```
 
 | 파라미터 | 필수 | 형식 | 설명 |
@@ -249,6 +303,7 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&rain_mm=60&closures=127.0
 | `bbox` | O | `최소경도,최소위도,최대경도,최대위도` | 지도 화면 범위 |
 | `rain_mm` | X | 숫자 (0~200) | 발표 시연용 가정 강우. `/api/route` 와 같음 |
 | `closures` | X | `경도,위도;경도,위도` (최대 20개) | 발표 시연용 가정 통제 지점. `/api/route` 와 같은 지점을 넣으면 됨 |
+| `shape` | X | `line` (기본) / `area` | `line`: 구간별 선 (아래 응답). `area`: 등급별 면 ([응답 200: shape=area](#응답-200-shapearea)) |
 
 - `closures` 는 배열이 아니라 **문자열 하나**입니다 (axios 는 배열을 `closures[]=` 로 보내 서버가 읽지 못함).
   ```js
@@ -292,6 +347,51 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&rain_mm=60&closures=127.0
 
 - `안전` 등급 구간은 보내지 않습니다. 단, 통행 제외 구간은 등급과 관계없이 보냅니다.
 - 비가 오지 않으면 `features` 는 빈 배열일 수 있습니다.
+
+### 응답 200: shape=area
+
+```json
+{
+  "type": "FeatureCollection",
+  "updated_at": "2026-11-13T15:50:00+09:00",
+  "scenario": false,
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[127.0262, 37.4996], [127.0268, 37.4996], [127.0268, 37.5001], [127.0262, 37.4996]],
+          [[127.0264, 37.4997], [127.0265, 37.4998], [127.0264, 37.4998], [127.0264, 37.4997]]
+        ]
+      },
+      "properties": {
+        "area_id": 1,
+        "grade": "고위험",
+        "excluded": false,
+        "length_m": 312,
+        "reasons": ["침수흔적 3회 (2010·2011·2022)", "침수흔적 1회 (2022)"],
+        "center": [127.0265, 37.4998]
+      }
+    }
+  ]
+}
+```
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `features[].geometry` | GeoJSON Polygon | `[바깥 고리, 구멍...]`. 고리마다 `[경도, 위도]` 목록 (첫 점 = 끝 점). 길로 둘러싸인 블록은 구멍으로 남음 |
+| `properties.area_id` | integer | 응답 안에서의 면 번호 (요청마다 바뀔 수 있음) |
+| `properties.grade` | string | 면에 묶인 구간 중 가장 높은 등급. 통행 제외 면이 아니면 `위험` / `고위험` |
+| `properties.excluded` | boolean | `true` 면 통행 제외 면 (지나갈 수 없음) |
+| `properties.length_m` | integer | 면에 묶인 구간 길이 합 (m) |
+| `properties.reasons` | string[] | 묶인 구간들의 이유 태그 합집합 (많은 구간에 붙은 태그부터) |
+| `properties.center` | `[경도, 위도]` | 면 안쪽의 한 점 (통행 제외 버튼 위치) |
+
+- '위험' 이상(위험도 0.6 이상)이거나 통행 제외인 구간만 묶습니다. `주의` 는 보내지 않습니다 (비교 카드의 위험 구간 기준과 같음).
+- 구간을 12m 부풀려 합쳐서, 맞닿은 구간과 나란한 차도·보도가 면 하나가 됩니다.
+- 면끼리는 겹치지 않습니다. 겹치는 곳은 통행 제외 > 고위험 > 위험 순으로 앞 면에 들어갑니다 → 반투명으로 칠해도 색이 두 번 겹치지 않음.
+- 표시용 묶음입니다. 경로 계산은 그대로 25m 구간별 위험도를 씁니다.
 
 ### 오류
 
@@ -448,3 +548,4 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&rain_mm=60&closures=127.0
 - v1.0 (11/13): FE 공유용 최종본. 비교 카드 값 `danger_length_m`·`risk_cost` 추가, 경로가 없으면 404 대신 200 + `fallback` (11/15 서버 반영)
 - v1.1 (11/15): `fallback`(임시주거시설 안내)·`danger_length_m`·`risk_cost` 서버 반영
 - v1.2 (11/22): 경로 대표 등급 `route_grade` 추가 (비교 카드 위험도는 `max_grade` 대신 이 값 사용)
+- v1.3 (11/22): 위험 구역 묶음. `/api/route` 에 `danger_sections`·`danger_section_count`·`risk_areas`, `/api/risk-layer` 에 `shape=area` 추가 (기존 필드·기본 응답은 그대로)

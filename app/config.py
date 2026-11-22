@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     # ---- 경로 대표 등급 route_grade: '위험' 이상 구간 통과 거리 기준 ----
     route_danger_length_m: float = 100.0   # 이 거리(m) 이상 지나면 경로 '위험', 그보다 짧으면 '주의'
 
+    # ---- 지도 위험 면 (risk_areas): 이어진 '위험' 이상 구간을 면 하나로 묶어 표시 ----
+    area_buffer_m: float = 12.0           # 구간을 이만큼 부풀려 합친다 (차도·양쪽 보도가 한 면이 되도록)
+    area_simplify_m: float = 1.0          # 면 외곽선 단순화 허용 오차
+    route_area_corridor_m: float = 150.0  # /api/route 의 risk_areas: 경로 주변 이 거리 안의 구간만
+    section_gap_m: float = 25.0           # 경로 위 위험 구간 사이의 안전한 길이 이 길이 이하면 한 곳으로 센다
+
     # ---- 통행 제외 규칙 2: 서울시 침수경보 상황판단 기준 ----
     flood_warning_1h_mm: float = 72.0      # 1시간 72mm 이상
     flood_warning_1h_alt_mm: float = 50.0  # 또는 1시간 50mm 이상이면서

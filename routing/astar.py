@@ -10,9 +10,10 @@ from dataclasses import dataclass, field
 
 import networkx as nx
 
+from app.config import settings
 from routing.cost import segment_cost
 
-DANGER = 0.6  # '위험' 등급 이상 기준 (위험 구간 수 세기)
+DANGER = settings.grade_danger  # '위험' 등급 이상 기준 (위험 구간 수 세기). 등급 경계와 같은 값
 
 
 @dataclass
@@ -26,6 +27,7 @@ class RouteResult:
     risky_segment_ids: list[int] = field(default_factory=list)
     danger_length_m: float = 0.0           # '위험' 등급 이상 구간 길이 합
     risk_cost: float = 0.0                 # Σ 위험도 × 길이
+    segment_lengths: list[float] = field(default_factory=list)  # segment_ids 와 같은 순서의 길이
 
 
 def find_route(
@@ -86,4 +88,5 @@ def find_route(
         risky_segment_ids=risky,
         danger_length_m=sum(length for length, r in zip(lengths, risks, strict=True) if r >= DANGER),
         risk_cost=sum(length * r for length, r in zip(lengths, risks, strict=True)),
+        segment_lengths=lengths,
     )

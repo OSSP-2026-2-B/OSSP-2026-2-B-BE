@@ -27,6 +27,11 @@ def to_lnglat(x: float, y: float) -> list[float]:
     return [round(lng, 6), round(lat, 6)]
 
 
+def to_lnglat_arrays(x, y):
+    """미터 좌표 배열 → (경도 배열, 위도 배열). 면 외곽선처럼 점이 많을 때 한 번에 바꾼다"""
+    return _TO_4326.transform(x, y)
+
+
 def in_pilot_area(lat: float, lng: float, s: Settings = settings) -> bool:
     """강남역 중심에서 반경(1km)에 존재하는지 여부"""
     cx, cy = to_xy(s.pilot_center_lat, s.pilot_center_lon)

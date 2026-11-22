@@ -7,6 +7,7 @@
   (예: 침수이력이 없는 길이라도 도로 통제 지점 근처면 지도에 보여야 한다).
 - 구간 좌표는 미터 좌표(EPSG:5186) → 경위도(EPSG:4326) 변환을 처음 한 번만 한다.
 - bbox 판정은 구간의 외곽 사각형이 bbox 와 겹치는지로 한다 (구간이 25m 이하라 충분히 정확).
+- shape=area 면 '위험' 이상·통행 제외 구간을 면으로 묶어 돌려준다 (risk/areas.py, build_area_layer).
 """
 
 from collections.abc import Mapping
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from app.config import Settings, settings
+from risk.areas import area_candidates, build_areas
 from routing.cost import risk_grade
 
 BBox = tuple[float, float, float, float]  # 최소경도, 최소위도, 최대경도, 최대위도
@@ -72,6 +74,23 @@ def build_layer(
                 "reasons": reasons.get(sid, []),
             },
         })
+    return _collection(snapshot, features)
+
+
+def build_area_layer(
+    snapshot: Mapping, bbox: BBox, lines: Mapping[int, SegmentLine], geoms: Mapping, s: Settings = settings
+) -> dict:
+    """shape=area: bbox 와 겹치는 '위험' 이상·통행 제외 구간을 등급별 면으로 묶는다 ('주의'는 뺀다).
+    geoms: segment_id → 미터 좌표 선 (risk.areas.segment_geoms)"""
+    risk, excluded, reasons = snapshot["risk"], snapshot["excluded"], snapshot["reasons"]
+    sids = [
+        sid for sid in area_candidates(risk, excluded, s)
+        if (line := lines.get(sid)) is not None and _overlaps(line.bounds, bbox)
+    ]
+    return _collection(snapshot, build_areas(sids, risk, excluded, reasons, geoms, s))
+
+
+def _collection(snapshot: Mapping, features: list[dict]) -> dict:
     return {
         "type": "FeatureCollection",
         "updated_at": snapshot["rain"]["updated_at"],  # /api/route 의 rain.updated_at 과 같은 값
