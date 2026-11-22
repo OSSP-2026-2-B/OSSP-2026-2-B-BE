@@ -12,7 +12,7 @@
 import pytest
 
 from routing.astar import find_route
-from routing.cost import risk_grade, segment_cost
+from routing.cost import risk_grade, route_grade, segment_cost
 from routing.graph import build_graph
 
 NODES = [
@@ -47,6 +47,13 @@ def test_risk_grade_boundaries():
     assert risk_grade(0.3) == "주의"
     assert risk_grade(0.6) == "위험"
     assert risk_grade(0.8) == "고위험"
+
+
+def test_route_grade():
+    assert route_grade(150, 0.9) == "위험"   # 위험 구간을 100m 이상 지남
+    assert route_grade(25, 0.9) == "주의"    # 고위험 구간 1개(25m)만 지남
+    assert route_grade(0, 0.5) == "안전"     # 주의 구간만 지남 (위험 구간 0개)
+    assert route_grade(0, 0.0) == "안전"
 
 
 def test_no_risk_takes_shortest(G):

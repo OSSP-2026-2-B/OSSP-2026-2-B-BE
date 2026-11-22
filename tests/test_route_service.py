@@ -35,7 +35,8 @@ def test_route_without_risk():
     shortest, balanced = plan_routes(START, END, ["shortest", "balanced"], RiskInput())["routes"]
     assert 700 < shortest["distance_m"] < 1000
     assert balanced["distance_m"] == shortest["distance_m"]  # 위험 0 이면 같은 경로
-
+    assert shortest["route_grade"] == "안전"
+    
     coords = shortest["geometry"]["coordinates"]
     assert coords[0] == [START.lng, START.lat]
     assert coords[-1] == [END.lng, END.lat]
@@ -50,6 +51,7 @@ def test_balanced_avoids_risk():
     assert balanced["risk_segment_count"] < shortest["risk_segment_count"]
     assert balanced["distance_m"] > shortest["distance_m"]
     assert shortest["hazards"][0]["grade"] == "고위험"
+    assert shortest["route_grade"] == "위험"  # 경로 전체(700m 이상)가 위험 구간
     assert shortest["walk_speed_mps"] == 0.9  # 30mm 이면 폭우 속도
 
 
