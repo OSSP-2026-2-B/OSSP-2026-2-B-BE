@@ -56,6 +56,16 @@ def test_balanced_avoids_risk():
     assert shortest["walk_speed_mps"] == 0.9  # 30mm 이면 폭우 속도
 
 
+def test_caution_only_route_grade():
+    # 최단 경로 전체가 '주의'(0.4) 이면 위험 구간은 없어도 주의 구간 700m 이상 → 경로 '주의'
+    risk = {seg: 0.4 for seg in shortest_segments()}
+    (shortest,) = plan_routes(START, END, ["shortest"], RiskInput(risk=risk, rain_1h_mm=40))["routes"]
+    assert shortest["danger_length_m"] == 0
+    assert isinstance(shortest["caution_length_m"], int)
+    assert shortest["caution_length_m"] == shortest["distance_m"]
+    assert shortest["route_grade"] == "주의"
+
+
 def test_no_route_gives_shelter():
     G, index = get_graph()
     dst, _ = index.nearest(*to_xy(END.lat, END.lng))

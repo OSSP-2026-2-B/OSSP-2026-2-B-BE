@@ -13,7 +13,8 @@ import networkx as nx
 from app.config import settings
 from routing.cost import segment_cost
 
-DANGER = settings.grade_danger  # '위험' 등급 이상 기준 (위험 구간 수 세기). 등급 경계와 같은 값
+DANGER = settings.grade_danger    # '위험' 등급 이상 기준 (위험 구간 수 세기). 등급 경계와 같은 값
+CAUTION = settings.grade_caution  # '주의' 등급 기준 (CAUTION ≤ 위험도 < DANGER 인 구간이 '주의')
 
 
 @dataclass
@@ -26,6 +27,7 @@ class RouteResult:
     max_risk: float                        # 경로에서 가장 높은 위험도
     risky_segment_ids: list[int] = field(default_factory=list)
     danger_length_m: float = 0.0           # '위험' 등급 이상 구간 길이 합
+    caution_length_m: float = 0.0          # '주의' 등급 구간 길이 합 (CAUTION ≤ 위험도 < DANGER)
     risk_cost: float = 0.0                 # Σ 위험도 × 길이
     segment_lengths: list[float] = field(default_factory=list)  # segment_ids 와 같은 순서의 길이
 
@@ -77,6 +79,7 @@ def find_route(
         total += edge_cost(best)
 
     risks = [risk.get(s, 0.0) for s in seg_ids]
+    pairs = list(zip(lengths, risks, strict=True))
     risky = [s for s, r in zip(seg_ids, risks, strict=True) if r >= DANGER]
     return RouteResult(
         nodes=path,
@@ -86,7 +89,8 @@ def find_route(
         risk_segment_count=len(risky),
         max_risk=max(risks, default=0.0),
         risky_segment_ids=risky,
-        danger_length_m=sum(length for length, r in zip(lengths, risks, strict=True) if r >= DANGER),
-        risk_cost=sum(length * r for length, r in zip(lengths, risks, strict=True)),
+        danger_length_m=sum(length for length, r in pairs if r >= DANGER),
+        caution_length_m=sum(length for length, r in pairs if CAUTION <= r < DANGER),
+        risk_cost=sum(length * r for length, r in pairs),
         segment_lengths=lengths,
     )

@@ -32,8 +32,9 @@ class Settings(BaseSettings):
     grade_danger: float = 0.6
     grade_severe: float = 0.8
 
-    # ---- 경로 대표 등급 route_grade: '위험' 이상 구간 통과 거리 기준 ----
+    # ---- 경로 대표 등급 route_grade: '위험' 이상·'주의' 구간 통과 거리 기준 ----
     route_danger_length_m: float = 100.0   # 이 거리(m) 이상 지나면 경로 '위험', 그보다 짧으면 '주의'
+    route_caution_length_m: float = 100.0  # '주의' 구간을 이 거리(m) 이상 지나면 위험 구간이 없어도 '주의'
 
     # ---- 지도 위험 면 (risk_areas): 이어진 '위험' 이상 구간을 면 하나로 묶어 표시 ----
     area_buffer_m: float = 12.0           # 구간을 이만큼 부풀려 합친다 (차도·양쪽 보도가 한 면이 되도록)

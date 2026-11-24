@@ -11,6 +11,7 @@
 
 import pytest
 
+from app.config import Settings
 from routing.astar import find_route
 from routing.cost import risk_grade, route_grade, segment_cost
 from routing.graph import build_graph
@@ -50,10 +51,19 @@ def test_risk_grade_boundaries():
 
 
 def test_route_grade():
-    assert route_grade(150, 0.9) == "위험"   # 위험 구간을 100m 이상 지남
-    assert route_grade(25, 0.9) == "주의"    # 고위험 구간 1개(25m)만 지남
-    assert route_grade(0, 0.5) == "안전"     # 주의 구간만 지남 (위험 구간 0개)
-    assert route_grade(0, 0.0) == "안전"
+    # 인자: 위험 이상 통과 거리, 가장 높은 위험도, 주의 통과 거리
+    assert route_grade(150, 0.9, 0) == "위험"    # 위험 구간을 100m 이상 지남
+    assert route_grade(150, 0.9, 500) == "위험"  # 주의 구간이 길어도 위험이 우선
+    assert route_grade(25, 0.9, 0) == "주의"     # 고위험 구간 1개(25m)만 지남
+    assert route_grade(0, 0.5, 150) == "주의"    # 위험 구간 없이 주의 구간을 100m 이상 지남
+    assert route_grade(0, 0.5, 100) == "주의"    # 경계값 100m 는 주의
+    assert route_grade(0, 0.5, 50) == "안전"     # 주의 구간을 100m 보다 짧게 지남
+    assert route_grade(0, 0.0, 0) == "안전"
+
+
+def test_route_grade_uses_settings():
+    S = Settings(_env_file=None, route_caution_length_m=40)
+    assert route_grade(0, 0.5, 50, S) == "주의"   # 기준을 40m 로 낮추면 50m 도 주의
 
 
 def test_no_risk_takes_shortest(G):
@@ -108,7 +118,18 @@ def test_card_values(G):
 
 
 def test_card_values_caution_only(G):
-    # 주의(0.3)는 통과 거리에는 안 들어가고 누적 위험에만 들어간다
+    # 주의(0.3)는 위험 통과 거리에는 안 들어가고 주의 통과 거리·누적 위험에 들어간다
     r = find_route(G, 1, 3, alpha=5, risk={10: 0.3})
     assert r.danger_length_m == 0
+    assert r.caution_length_m == 100
     assert r.risk_cost == pytest.approx(30)   # 100 × 0.3
+
+
+def test_caution_length_boundaries(G):
+    # 0.3 이상 0.6 미만만 주의. 0.6 은 위험, 0.29 는 안전으로 어느 쪽에도 안 들어간다
+    r = find_route(G, 1, 3, alpha=0, risk={10: 0.6, 11: 0.3})
+    assert r.danger_length_m == 100
+    assert r.caution_length_m == 100
+    r = find_route(G, 1, 3, alpha=0, risk={10: 0.29, 11: 0.59})
+    assert r.danger_length_m == 0
+    assert r.caution_length_m == 100
