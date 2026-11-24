@@ -148,6 +148,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
       "danger_section_count": 0
     }
   ],
+  "unavoidable_danger_m": 0,
   "risk_areas": {
     "type": "FeatureCollection",
     "features": [
@@ -171,6 +172,20 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
   "fallback": null
 }
 ```
+
+**응답 최상위**
+
+| 필드 | 타입 | 설명 |
+| --- | --- | --- |
+| `rain` | object | 경로 계산에 쓴 강우 (아래 표) |
+| `routes` | object[] | 요청한 `modes` 순서의 경로. 경로가 없으면 `[]` |
+| `unavoidable_danger_m` | integer \| null | 피할 수 없는 위험 거리 (m): 같은 출발·도착 사이에서 어떤 경로로 가도 지나야 하는 '위험' 이상 구간 길이의 최솟값. 경로가 없으면 (`fallback`) `null` |
+| `risk_areas` | GeoJSON FeatureCollection | 경로 주변 위험 면 (아래 설명) |
+| `fallback` | object \| null | 경로가 없을 때 임시주거시설 안내. 경로가 있으면 `null` |
+
+- 각 경로의 `danger_length_m − unavoidable_danger_m` 이 그 경로에서 피할 수 있었던 위험 거리입니다 (0 이면 이미 가장 덜 위험한 경로).
+- 출발지·도착지 주변이 침수 구역이면 이 값이 0 보다 큽니다. 예) "출발지 주변이 침수 구역이라 최소 292m 는 어느 길로 가도 지나야 해요". 안내 문구를 언제 띄울지는 FE 가 정합니다.
+- 통행 제외 구간은 지나가지 않는 것으로 계산합니다 (경로 탐색과 같음).
 
 **`rain`**
 
@@ -237,6 +252,7 @@ const path = data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng
 {
   "rain": { "rain_1h_mm": 80.0, "updated_at": null, "scenario": true },
   "routes": [],
+  "unavoidable_danger_m": null,
   "risk_areas": { "type": "FeatureCollection", "features": [] },
   "fallback": {
     "type": "shelter",
@@ -482,8 +498,12 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&shape=area
 | `rain_mm` | 결과 |
 | --- | --- |
 | 0~30 | 위험도 0. 모든 모드가 같은 경로 |
+| 약 37~44 | 침수흔적 구간(H=1)이 '주의'. 이 구간을 100m 이상 지나는 경로는 `route_grade` 가 `주의` |
+| 약 44 이상 | 침수흔적 구간(H=1, 전체 구간의 약 29%)이 한꺼번에 '위험' |
 | 약 49 이상 | 침수흔적이 있는 구간이 '고위험' → 균형·안전 모드가 우회 |
 | 72 이상 | 침수경보 기준 → 침수흔적과 겹치는 지하 구간 통행 제외 |
+
+- 시연에서 강우를 비교할 때는 등급이 한꺼번에 바뀌는 44~45mm 를 피해 40mm·60mm 를 권장합니다. 예) 신논현역 5번 출구 → 역삼초: 40mm 최단 `주의`(주의 구간 781m) vs 균형 `안전` / 60mm 최단 `위험`(위험 구간 781m) vs 균형 `주의`(14m).
 
 ---
 
@@ -552,4 +572,4 @@ GET /api/risk-layer?bbox=127.020,37.492,127.035,37.505&shape=area
 - v1.1 (11/15): `fallback`(임시주거시설 안내)·`danger_length_m`·`risk_cost` 서버 반영
 - v1.2 (11/22): 경로 대표 등급 `route_grade` 추가 (비교 카드 위험도는 `max_grade` 대신 이 값 사용)
 - v1.3 (11/22): 위험 구역 묶음. `/api/route` 에 `danger_sections`·`danger_section_count`·`risk_areas`, `/api/risk-layer` 에 `shape=area` 추가 (기존 필드·기본 응답은 그대로)
-- v1.4 (11/24): `route_grade` 가 '주의' 구간도 봄 ('주의' 구간을 100m 이상 지나면 `주의`). `routes[].caution_length_m` 추가
+- v1.4 (11/24): `route_grade` 가 '주의' 구간도 봄 ('주의' 구간을 100m 이상 지나면 `주의`). `routes[].caution_length_m`, 최상위 `unavoidable_danger_m`(피할 수 없는 위험 거리) 추가 (기존 필드는 그대로)

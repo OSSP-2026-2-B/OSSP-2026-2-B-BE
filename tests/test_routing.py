@@ -12,7 +12,7 @@
 import pytest
 
 from app.config import Settings
-from routing.astar import find_route
+from routing.astar import find_route, min_danger_length
 from routing.cost import risk_grade, route_grade, segment_cost
 from routing.graph import build_graph
 
@@ -133,3 +133,37 @@ def test_caution_length_boundaries(G):
     r = find_route(G, 1, 3, alpha=0, risk={10: 0.29, 11: 0.59})
     assert r.danger_length_m == 0
     assert r.caution_length_m == 100
+
+def test_min_danger_length_no_risk(G):
+    assert min_danger_length(G, 1, 3) == 0
+
+
+def test_min_danger_length_picks_least_danger(G):
+    # 위쪽 길은 10번(100m) 이 위험, 아래쪽 길은 12번(50m) 이 위험 → 어느 길로 가도 최소 50m 는 지나야 함
+    risk = {10: 0.9, 12: 0.7}
+    assert min_danger_length(G, 1, 3, risk) == 50
+    # 최단 경로(위쪽)는 100m 를 지나므로 피할 수 있었던 위험은 100 − 50 = 50m
+    assert find_route(G, 1, 3, alpha=0, risk=risk).danger_length_m == 100
+
+
+def test_min_danger_length_prefers_safe_detour(G):
+    # 위쪽 길만 위험하면 더 긴 아래쪽 길(300m)로 위험 없이 갈 수 있다 → 0
+    assert min_danger_length(G, 1, 3, {10: 0.9}) == 0
+    # 주의(0.3~0.6) 구간은 '위험'이 아니므로 세지 않는다
+    assert min_danger_length(G, 1, 3, {10: 0.5, 14: 0.5}) == 0
+
+
+def test_min_danger_length_never_uses_excluded(G):
+    # 아래쪽 길 12번이 통행 제외면 위험한 위쪽 길밖에 없다 → 100m
+    # (통행 제외 구간은 위험이 없어도 지나가지 않음)
+    assert min_danger_length(G, 1, 3, {10: 0.9}, excluded={12}) == 100
+    # 3 으로 들어가는 길이 모두 제외되면 경로 없음
+    assert min_danger_length(G, 1, 3, {10: 0.9}, excluded={11, 13}) is None
+
+
+def test_min_danger_length_parallel_segments():
+    # 1–2 사이에 위험한 10번(100m) 과 더 긴 안전한 16번(120m) 이 나란히 있으면 16번을 고른다
+    segments = [*SEGMENTS, {"segment_id": 16, "u": 1, "v": 2, "length": 120, "U": 0}]
+    G = build_graph(segments, NODES)
+    assert min_danger_length(G, 1, 3, {10: 0.9, 12: 0.9}) == 0
+    assert min_danger_length(G, 1, 3, {10: 0.9, 12: 0.9, 16: 0.6}) == 50   # 16번도 위험하면 아래쪽 50m
