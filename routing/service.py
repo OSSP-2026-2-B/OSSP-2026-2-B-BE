@@ -9,7 +9,7 @@ from shapely.geometry import LineString
 from app.api.errors import ApiError
 from app.config import Settings, settings
 from risk.areas import area_candidates, build_areas, merge_reasons, segment_geoms, segments_near
-from routing.astar import RouteResult, find_route
+from routing.astar import RouteResult, find_route, min_danger_length
 from routing.cost import risk_grade, route_grade
 from routing.fallback import find_shelter, get_shelters
 from routing.graph import load_graph_from_gpkg
@@ -60,12 +60,16 @@ def plan_routes(start, end, modes: list[str], ri: RiskInput, s: Settings = setti
         fallback = find_shelter(G, index, src, start, ri.risk, ri.excluded, ri.rain_1h_mm, get_shelters(), s)
         if fallback is None:
             raise ApiError(404, "NO_ROUTE", "경로와 안내할 임시주거시설 모두 없습니다.")
-        return {"rain": rain, "routes": [], "risk_areas": _areas([]), "fallback": fallback}
+        return {"rain": rain, "routes": [], "unavoidable_danger_m": None,
+                "risk_areas": _areas([]), "fallback": fallback}
 
     base_min = duration_min(found["shortest"].distance_m, ri.rain_1h_mm, s)
     routes = [_route_json(m, found[m], G, start, end, base_min, speed, ri, s) for m in modes]
+    # 출발·도착이 같으므로 모드와 관계없이 한 번만 계산 (경로가 있으면 이 값도 항상 있음)
+    unavoidable = min_danger_length(G, src, dst, ri.risk, ri.excluded)
     areas = route_areas([found[m] for m in modes], G, ri, s)
-    return {"rain": rain, "routes": routes, "risk_areas": areas, "fallback": None}
+    return {"rain": rain, "routes": routes, "unavoidable_danger_m": round(unavoidable),
+            "risk_areas": areas, "fallback": None}
 
 
 def route_areas(results: list[RouteResult], G, ri: RiskInput, s: Settings = settings, geoms=None) -> dict:
@@ -151,9 +155,10 @@ def _route_json(mode, r: RouteResult, G, start, end, base_min, speed, ri: RiskIn
         "detour_min": max(0, minutes - base_min),
         "risk_segment_count": r.risk_segment_count,
         "danger_length_m": round(r.danger_length_m),
+        "caution_length_m": round(r.caution_length_m),
         "risk_cost": round(r.risk_cost, 1),
         "max_grade": risk_grade(r.max_risk, s),
-        "route_grade": route_grade(r.danger_length_m, r.max_risk, s),
+        "route_grade": route_grade(r.danger_length_m, r.max_risk, r.caution_length_m, s),
         "geometry": {"type": "LineString", "coordinates": coords},
         "hazards": hazards,
         "danger_sections": sections,

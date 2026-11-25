@@ -56,6 +56,36 @@ def test_balanced_avoids_risk():
     assert shortest["walk_speed_mps"] == 0.9  # 30mm 이면 폭우 속도
 
 
+def test_unavoidable_danger():
+    assert plan_routes(START, END, ["shortest"], RiskInput())["unavoidable_danger_m"] == 0
+
+    risk = {seg: 0.9 for seg in shortest_segments()}
+    out = plan_routes(START, END, ["shortest", "balanced", "safety"], RiskInput(risk=risk, rain_1h_mm=30))
+    unavoidable = out["unavoidable_danger_m"]
+    assert isinstance(unavoidable, int)
+    # 어느 모드도 피할 수 없는 위험 거리보다 적게 지날 수는 없다 (반올림 오차 1m 허용)
+    assert all(r["danger_length_m"] >= unavoidable - 1 for r in out["routes"])
+    assert unavoidable < out["routes"][0]["danger_length_m"]   # 최단 경로 위험은 돌아가면 줄일 수 있음
+
+    # 도착 교차점에 붙은 길이 모두 위험이면 마지막 길 하나는 어느 경로로 가도 지나야 한다
+    G, index = get_graph()
+    dst, _ = index.nearest(*to_xy(END.lat, END.lng))
+    last = {key: 0.9 for _, _, key in G.edges(dst, keys=True)}
+    shortest_last = min(d["length"] for _, _, d in G.edges(dst, data=True))
+    out = plan_routes(START, END, ["balanced"], RiskInput(risk=last, rain_1h_mm=60))
+    assert out["unavoidable_danger_m"] == round(shortest_last)
+
+
+def test_caution_only_route_grade():
+    # 최단 경로 전체가 '주의'(0.4) 이면 위험 구간은 없어도 주의 구간 700m 이상 → 경로 '주의'
+    risk = {seg: 0.4 for seg in shortest_segments()}
+    (shortest,) = plan_routes(START, END, ["shortest"], RiskInput(risk=risk, rain_1h_mm=40))["routes"]
+    assert shortest["danger_length_m"] == 0
+    assert isinstance(shortest["caution_length_m"], int)
+    assert shortest["caution_length_m"] == shortest["distance_m"]
+    assert shortest["route_grade"] == "주의"
+
+
 def test_no_route_gives_shelter():
     G, index = get_graph()
     dst, _ = index.nearest(*to_xy(END.lat, END.lng))
@@ -64,6 +94,7 @@ def test_no_route_gives_shelter():
     out = plan_routes(START, END, ["balanced"], RiskInput(excluded=blocked))
     fb = out["fallback"]
     assert out["routes"] == []
+    assert out["unavoidable_danger_m"] is None   # 경로가 없으면 계산하지 않음
     assert fb["type"] == "shelter"
     assert fb["reachable"] is True
     assert fb["duration_min"] > 0

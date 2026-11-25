@@ -26,14 +26,20 @@ def risk_grade(risk: float, s: Settings = settings) -> str:
     return "안전"
 
 
-def route_grade(danger_length_m: float, max_risk: float, s: Settings = settings) -> str:
-    """경로 대표 등급 (비교 카드의 위험도). '위험' 이상 구간을 얼마나 지나는지로 정한다.
+def route_grade(
+    danger_length_m: float, max_risk: float, caution_length_m: float, s: Settings = settings
+) -> str:
+    """경로 대표 등급 (비교 카드의 위험도). '위험' 이상·'주의' 구간을 얼마나 지나는지로 정한다.
 
-    위험 구간 통과 거리 100m 이상 → 위험 / 위험 구간이 있지만 그보다 짧음 → 주의 / 위험 구간 없음 → 안전.
+    - 위험: '위험' 이상 구간 통과 거리가 route_danger_length_m(100m) 이상
+    - 주의: '위험' 이상 구간이 조금이라도 있거나, '주의' 구간 통과 거리가 route_caution_length_m(100m) 이상
+    - 안전: 그 외
     가장 나쁜 구간 하나로 정하는 max_grade 와 달리, 위험 구간을 1개만 지나도 경로 전체가 '위험'이 되지 않는다.
+    '주의' 구간을 길게 지나는 경로를 '안전'으로 두면 강우가 조금만 늘어도(그 구간이 주의 → 위험)
+    경로 등급이 안전에서 위험으로 건너뛰므로 '주의' 구간 거리도 본다.
     """
     if danger_length_m >= s.route_danger_length_m:
         return "위험"
-    if max_risk >= s.grade_danger:
+    if max_risk >= s.grade_danger or caution_length_m >= s.route_caution_length_m:
         return "주의"
     return "안전"

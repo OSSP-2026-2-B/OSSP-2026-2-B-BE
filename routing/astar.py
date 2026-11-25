@@ -13,7 +13,8 @@ import networkx as nx
 from app.config import settings
 from routing.cost import segment_cost
 
-DANGER = settings.grade_danger  # '위험' 등급 이상 기준 (위험 구간 수 세기). 등급 경계와 같은 값
+DANGER = settings.grade_danger    # '위험' 등급 이상 기준 (위험 구간 수 세기). 등급 경계와 같은 값
+CAUTION = settings.grade_caution  # '주의' 등급 기준 (CAUTION ≤ 위험도 < DANGER 인 구간이 '주의')
 
 
 @dataclass
@@ -26,6 +27,7 @@ class RouteResult:
     max_risk: float                        # 경로에서 가장 높은 위험도
     risky_segment_ids: list[int] = field(default_factory=list)
     danger_length_m: float = 0.0           # '위험' 등급 이상 구간 길이 합
+    caution_length_m: float = 0.0          # '주의' 등급 구간 길이 합 (CAUTION ≤ 위험도 < DANGER)
     risk_cost: float = 0.0                 # Σ 위험도 × 길이
     segment_lengths: list[float] = field(default_factory=list)  # segment_ids 와 같은 순서의 길이
 
@@ -77,6 +79,7 @@ def find_route(
         total += edge_cost(best)
 
     risks = [risk.get(s, 0.0) for s in seg_ids]
+    pairs = list(zip(lengths, risks, strict=True))
     risky = [s for s, r in zip(seg_ids, risks, strict=True) if r >= DANGER]
     return RouteResult(
         nodes=path,
@@ -86,7 +89,52 @@ def find_route(
         risk_segment_count=len(risky),
         max_risk=max(risks, default=0.0),
         risky_segment_ids=risky,
-        danger_length_m=sum(length for length, r in zip(lengths, risks, strict=True) if r >= DANGER),
-        risk_cost=sum(length * r for length, r in zip(lengths, risks, strict=True)),
+        danger_length_m=sum(length for length, r in pairs if r >= DANGER),
+        caution_length_m=sum(length for length, r in pairs if CAUTION <= r < DANGER),
+        risk_cost=sum(length * r for length, r in pairs),
         segment_lengths=lengths,
     )
+
+# '위험' 이상 구간 1m 를 안전한 길 100만 m 처럼 계산 → 위험 거리를 먼저 줄이고, 같으면 짧은 길
+DANGER_WEIGHT = 1e6
+
+
+def min_danger_length(
+    G: nx.MultiGraph,
+    start: int,
+    end: int,
+    risk: dict[int, float] | None = None,       # segment_id → 위험도 (없으면 0)
+    excluded: set[int] | None = None,           # 통행 제외 segment_id (find_route 와 같이 지나가지 못함)
+) -> float | None:
+    """출발·도착 사이 어떤 경로로 가도 지나야 하는 '위험' 이상 구간 길이의 최솟값 (m). 경로가 없으면 None.
+
+    가중치를 '위험' 이상 구간은 길이 × DANGER_WEIGHT, 그 외는 길이로 두고 다익스트라로 가장 가벼운 경로를
+    찾는다. 위험 구간 1m 가 어떤 우회(시범 지역 안 경로는 수 km)보다 무거우므로, 이 경로의 위험 구간 길이가
+    곧 최솟값이다.
+    각 경로의 danger_length_m − 이 값 = 그 경로에서 피할 수 있었던 위험 거리 (0 이면 이미 최선).
+    """
+    risk = risk or {}
+    excluded = excluded or set()
+
+    def edge_weight(data: dict) -> float | None:
+        if data["segment_id"] in excluded:
+            return None
+        danger = risk.get(data["segment_id"], 0.0) >= DANGER
+        return data["length"] * (DANGER_WEIGHT if danger else 1.0)
+
+    def weight(u, v, keyed: dict) -> float | None:
+        # 두 교차점 사이 길이 여러 개면 같은 기준으로 가장 가벼운 길
+        ws = [w for w in (edge_weight(d) for d in keyed.values()) if w is not None]
+        return min(ws) if ws else None
+
+    try:
+        path = nx.dijkstra_path(G, start, end, weight=weight)
+    except nx.NetworkXNoPath:
+        return None
+
+    total = 0.0
+    for a, b in zip(path, path[1:], strict=False):
+        best = min((d for d in G[a][b].values() if edge_weight(d) is not None), key=edge_weight)
+        if risk.get(best["segment_id"], 0.0) >= DANGER:
+            total += best["length"]
+    return total
